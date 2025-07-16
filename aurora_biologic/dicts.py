@@ -1,4 +1,5 @@
 """Dictionaries from Biologic."""
+
 status_codes = {
     0: "Status",
     1: "Ox/Red",

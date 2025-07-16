@@ -31,8 +31,7 @@ if not config_path.exists():
     with config_path.open("w") as f:
         json.dump(default_config, f, indent=4)
     logger.warning(
-        "Config file created at %s. "
-        "You must put serial number: device name pairs in the file.",
+        "Config file created at %s. You must put serial number: device name pairs in the file.",
         config_dir,
     )
 
@@ -45,6 +44,7 @@ serial_to_name = {int(k): v for k, v in serial_to_name.items()}
 def _human_readable_status(status: tuple) -> dict:
     """Convert status codes to human-readable strings."""
     return dict(zip(status_codes.values(), status, strict=True))
+
 
 class BiologicAPI:
     """Class to interact with Biologic EC-lab potentiostats."""
