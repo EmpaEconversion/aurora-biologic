@@ -27,7 +27,7 @@ dev = [
 biologic = "aurora_biologic.cli.main:app"
 
 [tool.ruff]
-line-length = 120  # Set the maximum line length
+line-length = 100  # Set the maximum line length
 lint.select = ["ALL"]
 lint.ignore = [
     "N806",
