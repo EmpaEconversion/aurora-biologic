@@ -16,7 +16,7 @@ dependencies = [
     "typer>=0.16.0",
 ]
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
     "bumpver>=2025.1131",
     "pytest>=8.4.1",
