@@ -88,7 +88,7 @@ class BiologicAPI:
 
         """
         devices = {}
-        for i in range(1, 17):  # TODO is there a way to get the total number of devices?
+        for i in range(17):  # TODO is there a way to get the total number of devices?
             sn, channel_sns, success = self.eclab.GetDeviceSN(i)
             if not success:
                 continue
@@ -101,12 +101,12 @@ class BiologicAPI:
                     sn,
                 )
             for j, channel_sn in enumerate(channel_sns):
-                pipeline_id = f"{device_name}-{j}"
+                pipeline_id = f"{device_name}-{j+1}"
                 devices[pipeline_id] = {
                     "device_name": device_name,
-                    "device_number": i,
+                    "device_index": i,
                     "device_serial_number": int(sn),
-                    "channel_number": j,
+                    "channel_index": j,
                     "channel_serial_number": int(channel_sn),
                 }
         return devices
@@ -134,8 +134,8 @@ class BiologicAPI:
         for pipeline_id, pipeline_dict in pipeline_dicts.items():
             status[pipeline_id] = _human_readable_status(
                 self.eclab.MeasureStatus(
-                    pipeline_dict["device_number"],
-                    pipeline_dict["channel_number"],
+                    pipeline_dict["device_index"],
+                    pipeline_dict["channel_index"],
                 ),
             )
 
