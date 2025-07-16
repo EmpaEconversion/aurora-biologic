@@ -1,0 +1,140 @@
+"""Python API for Biologic EC-lab potentiostats.
+
+Contains the class BiologicAPI that provides methods to interact with the EC-lab
+potentiostats.
+"""
+
+import json
+import logging
+from pathlib import Path
+from types import TracebackType
+
+from comtypes.client import CreateObject
+from platformdirs import user_config_dir
+
+from aurora_biologic.dicts import status_codes
+
+logger = logging.getLogger(__name__)
+
+APP_NAME = "aurora-biologic"
+CONFIG_FILENAME = "config.json"
+config_dir = Path(user_config_dir(APP_NAME))
+config_path = config_dir / CONFIG_FILENAME
+if not config_path.exists():
+    config_dir.mkdir(parents=True, exist_ok=True)
+    default_config = {
+        "serial_to_name": {
+            12345: "example_device_1",
+            12346: "example_device_2",
+        },
+    }
+    with config_path.open("w") as f:
+        json.dump(default_config, f, indent=4)
+    logger.warning(
+        "Config file created at %s. "
+        "You must put serial number: device name pairs in the file.",
+        config_dir,
+    )
+
+with config_path.open("r") as f:
+    CONFIG = json.load(f)
+serial_to_name = CONFIG.get("serial_to_name", {})
+
+def _human_readable_status(status: tuple) -> dict:
+    """Convert status codes to human-readable strings."""
+    return dict(zip(status_codes.values(), status, strict=True))
+
+class BiologicAPI:
+    """Class to interact with Biologic EC-lab potentiostats."""
+
+    def __init__(self) -> None:
+        """Initialize the API with the host and port."""
+        try:
+            self.eclab = CreateObject("EClabCOM.EClabExe")
+        except OSError as e:
+            msg = (
+                "Failed to connect to EC-Lab. "
+                "Make sure you have EC-lab registered with OLE-COM. "
+                "cd to the directory and use ECLab /regserver"
+            )
+            raise RuntimeError(msg) from e
+
+        self.pipelines: dict[str, dict] = self.get_all_pipelines()
+
+    def __enter__(self) -> "BiologicAPI":
+        """Do nothing when entering context."""
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        """Do nothing when exiting the context."""
+        pass
+
+    def __del__(self) -> None:
+        """Do nothing when deleted."""
+        pass
+
+    def get_all_pipelines(self) -> dict[str, dict]:
+        """Get all pipelines (device+channel) connected to EC-lab.
+
+        Returns:
+            dict: A dictionary with pipeline IDs as keys and their properties as values.
+
+        """
+        devices = {}
+        for i in range(1, 17):  # TODO is there a way to get the total number of devices?
+            sn, channel_sns, success = self.eclab.GetDeviceSN(i)
+            if not success:
+                continue
+            device_name = serial_to_name.get(sn)
+            if not device_name:
+                device_name = sn
+                logger.warning(
+                    "Device with serial number '%s' not found in config file. "
+                    "The serial number will be used as device name.",
+                    sn,
+                )
+            for j, channel_sn in enumerate(channel_sns):
+                pipeline_id = f"{device_name}-{j}"
+                devices[pipeline_id] = {
+                    "device_name": device_name,
+                    "device_number": i,
+                    "device_serial_number": int(sn),
+                    "channel_number": j,
+                    "channel_serial_number": int(channel_sn),
+                }
+        return devices
+
+    def get_status(self, pipeline_ids: list[str] | None = None) -> dict[str, dict]:
+        """Get the status of the cycling process for all or selected pipelines.
+
+        Args:
+            pipeline_ids (list[str] | None): List of pipeline IDs to get status from.
+                If None, will use the full channel map.
+
+        Returns:
+            dict: A dictionary with pipeline IDs as keys and their status as values.
+
+        """
+        if not pipeline_ids:
+            pipeline_dicts = self.pipelines
+        else:
+            if isinstance(pipeline_ids, str):
+                pipeline_ids = [pipeline_ids]
+            pipeline_dicts = {pid: self.pipelines[pid] for pid in pipeline_ids if pid in self.pipelines}
+
+        # Get the status of each pipeline and add it to the result dictionary
+        status = {}
+        for pipeline_id, pipeline_dict in pipeline_dicts.items():
+            status[pipeline_id] = _human_readable_status(
+                self.eclab.MeasureStatus(
+                    pipeline_dict["device_number"],
+                    pipeline_dict["channel_number"],
+                ),
+            )
+
+        return status

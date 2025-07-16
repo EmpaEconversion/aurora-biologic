@@ -1,0 +1,3 @@
+"""Version information for the aurora-ec-lab package."""
+
+__version__ = "0.0.1"
