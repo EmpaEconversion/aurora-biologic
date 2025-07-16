@@ -58,3 +58,67 @@ def status(
     with BiologicAPI() as bio:
         status = bio.get_status(pipeline_ids=pipeline_ids)
         typer.echo(json.dumps(status, indent=indent))
+
+
+@app.command()
+def load_settings(
+    pipeline: str,
+    settings_file: PathArgument,
+) -> None:
+    """Load settings on to a pipeline.
+
+    Args:
+        pipeline (str): the pipeline ID to load settings on
+        settings_file (Path): path to the settings file
+
+    """
+    with BiologicAPI() as bio:
+        bio.load_settings(pipeline, settings_file)
+
+
+@app.command()
+def start(
+    pipeline: str,
+    output_path: PathArgument,
+) -> None:
+    """Start a cycling process on a pipeline.
+
+    Args:
+        pipeline (str): the pipeline ID to start
+        output_path (Path): path to the output file
+
+    """
+    with BiologicAPI() as bio:
+        bio.start(pipeline, output_path)
+
+
+@app.command()
+def submit(
+    pipeline: str,
+    settings_file: PathArgument,
+    output_path: PathArgument,
+) -> None:
+    """Submit a cycling process on a pipeline.
+
+    Args:
+        pipeline (str): the pipeline ID to submit
+        settings_file (Path): path to the settings file
+        output_path (Path): path to the output file
+
+    """
+    with BiologicAPI() as bio:
+        bio.submit(pipeline, settings_file, output_path)
+
+
+@app.command()
+def stop(
+    pipeline: str,
+) -> None:
+    """Stop the cycling process on a pipeline.
+
+    Args:
+        pipeline (str): the pipeline ID to stop
+
+    """
+    with BiologicAPI() as bio:
+        bio.stop(pipeline)

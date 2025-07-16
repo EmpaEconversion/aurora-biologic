@@ -74,11 +74,9 @@ class BiologicAPI:
         traceback: TracebackType | None,
     ) -> None:
         """Do nothing when exiting the context."""
-        pass
 
     def __del__(self) -> None:
         """Do nothing when deleted."""
-        pass
 
     def get_all_pipelines(self) -> dict[str, dict]:
         """Get all pipelines (device+channel) connected to EC-lab.
@@ -88,7 +86,7 @@ class BiologicAPI:
 
         """
         devices = {}
-        for i in range(17):  # TODO is there a way to get the total number of devices?
+        for i in range(17):  # TODO: is there a way to get the total number of devices?
             sn, channel_sns, success = self.eclab.GetDeviceSN(i)
             if not success:
                 continue
@@ -101,7 +99,7 @@ class BiologicAPI:
                     sn,
                 )
             for j, channel_sn in enumerate(channel_sns):
-                pipeline_id = f"{device_name}-{j+1}"
+                pipeline_id = f"{device_name}-{j + 1}"
                 devices[pipeline_id] = {
                     "device_name": device_name,
                     "device_index": i,
@@ -110,6 +108,16 @@ class BiologicAPI:
                     "channel_serial_number": int(channel_sn),
                 }
         return devices
+
+    def get_pipeline(self, pipeline: str) -> dict[str, dict]:
+        """Get a specific pipeline by its ID. Raise ValueError if not found."""
+        pipeline_dict = self.pipelines.get(pipeline)
+        if not pipeline_dict:
+            msg = (
+                f"'{pipeline}' not known as a pipeline. Try 'biologic pipelines' to see available."
+            )
+            raise ValueError(msg)
+        return pipeline_dict
 
     def get_status(self, pipeline_ids: list[str] | None = None) -> dict[str, dict]:
         """Get the status of the cycling process for all or selected pipelines.
@@ -127,7 +135,9 @@ class BiologicAPI:
         else:
             if isinstance(pipeline_ids, str):
                 pipeline_ids = [pipeline_ids]
-            pipeline_dicts = {pid: self.pipelines[pid] for pid in pipeline_ids if pid in self.pipelines}
+            pipeline_dicts = {
+                pid: self.pipelines[pid] for pid in pipeline_ids if pid in self.pipelines
+            }
 
         # Get the status of each pipeline and add it to the result dictionary
         status = {}
@@ -140,3 +150,53 @@ class BiologicAPI:
             )
 
         return status
+
+    def load_settings(self, pipeline: str, settings_file: str | Path) -> None:
+        """Load settings on to a pipeline."""
+        settings_file = Path(settings_file)
+        if not settings_file.exists():
+            raise FileNotFoundError
+
+        pipeline_dict = self.get_pipeline(pipeline)
+
+        result = self.eclab.LoadSettings(
+            pipeline_dict["device_index"],
+            pipeline_dict["channel_index"],
+            str(settings_file),
+        )
+        if result != 1:
+            msg = "Failed to load settings."
+            raise ValueError(msg)
+
+    def start(self, pipeline: str, output_path: str | Path) -> None:
+        """Start the settings on the given pipeline."""
+        output_path = Path(output_path)
+        pipeline_dict = self.get_pipeline(pipeline)
+
+        result = self.eclab.RunChannel(
+            pipeline_dict["device_index"],
+            pipeline_dict["channel_index"],
+            str(output_path),
+        )
+
+        if result != 1:
+            msg = "Failed to start measurement."
+            raise ValueError(msg)
+
+    def submit(self, pipeline: str, input_file: str | Path, output_file: str | Path) -> None:
+        """Load and start job on channel."""
+        self.load_settings(pipeline, input_file)
+        self.start(pipeline, output_file)
+
+    def stop(self, pipeline: str) -> None:
+        """Stop the cycling process on a pipeline."""
+        pipeline_dict = self.get_pipeline(pipeline)
+
+        result = self.eclab.StopChannel(
+            pipeline_dict["device_index"],
+            pipeline_dict["channel_index"],
+        )
+
+        if result != 1:
+            msg = "Failed to stop measurement."
+            raise ValueError(msg)
