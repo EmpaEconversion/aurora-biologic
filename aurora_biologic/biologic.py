@@ -39,6 +39,8 @@ if not config_path.exists():
 with config_path.open("r") as f:
     CONFIG = json.load(f)
 serial_to_name = CONFIG.get("serial_to_name", {})
+serial_to_name = {int(k): v for k, v in serial_to_name.items()}
+
 
 def _human_readable_status(status: tuple) -> dict:
     """Convert status codes to human-readable strings."""
