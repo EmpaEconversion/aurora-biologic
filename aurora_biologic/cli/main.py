@@ -122,3 +122,13 @@ def stop(
     """
     with BiologicAPI() as bio:
         bio.stop(pipeline)
+
+
+@app.command()
+def get_job_id(
+    pipeline_ids: PipelinesArgument = None,
+    indent: IndentOption = None,
+) -> None:
+    """Get the job id for selected pipelines."""
+    with BiologicAPI() as bio:
+        typer.echo(json.dumps(bio.get_job_id(pipeline_ids), indent=indent))

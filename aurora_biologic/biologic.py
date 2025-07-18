@@ -243,3 +243,39 @@ class BiologicAPI:
         if result != 1:
             msg = "Failed to stop measurement."
             raise ValueError(msg)
+
+    def get_experiment_info(self, pipeline: str) -> tuple[str, str, str, tuple[str | None]]:
+        """Return various experiment info for the job running on the pipeline."""
+        pipeline_dict = self.get_pipeline(pipeline)
+        self.select_pipeline(pipeline)
+        # start, end, folder, files, result, mode
+        start, end, folder, files, result = self.eclab.GetExperimentInfos(
+            pipeline_dict["device_index"],
+            pipeline_dict["channel_index"],
+        )
+        return start, end, folder, files
+
+    def get_job_id(self, pipeline_ids: str) -> dict[str, str | None]:
+        """Get job IDs of selected channels.
+
+        The job ID is the folder name if the job is running, None if it is finished.
+        """
+        if not pipeline_ids:
+            pipeline_ids = self.pipelines
+        else:
+            if isinstance(pipeline_ids, str):
+                pipeline_ids = [pipeline_ids]
+            pipeline_ids = {pid for pid in pipeline_ids if pid in self.pipelines}
+
+        # Get experiment info is slow - first check running channels with status
+        status = self.get_status(pipeline_ids)
+        job_ids = {}
+        for pid in pipeline_ids:
+            if status[pid].get("Status", {}) in ["Run", "Pause", "Sync", "Pause_rec"]:
+                start, end, folder, _ = self.get_experiment_info(pid)
+                job_ids[pid] = (
+                    folder.split("\\")[-2] if (start is not None and end is None) else None
+                )
+            else:
+                job_ids[pid] = None
+        return job_ids
