@@ -6,9 +6,12 @@ potentiostats.
 
 import json
 import logging
+import subprocess
 from pathlib import Path
+from time import sleep
 from types import TracebackType
 
+import psutil
 from comtypes.client import CreateObject
 from platformdirs import user_config_dir
 
@@ -41,6 +44,20 @@ serial_to_name = CONFIG.get("serial_to_name", {})
 serial_to_name = {int(k): v for k, v in serial_to_name.items()}
 
 
+def open_eclab() -> None:
+    """Open EC-lab if it is not already running."""
+    if not any("EClab" in proc.info["name"] for proc in psutil.process_iter(["name"])):
+        if eclab_path := CONFIG.get("eclab_path"):
+            subprocess.Popen([eclab_path])
+            sleep(2)  # To allow the program to initialize
+        else:
+            msg = (
+                "EC-lab is not running. "
+                f"Either open EC-lab or add 'eclab_path' key to config at '{config_path}'"
+            )
+            raise ValueError(msg)
+
+
 def _human_readable_status(status: tuple) -> dict:
     """Convert status codes to human-readable strings."""
     return {
@@ -54,6 +71,7 @@ class BiologicAPI:
 
     def __init__(self) -> None:
         """Initialize the API with the host and port."""
+        open_eclab()
         try:
             self.eclab = CreateObject("EClabCOM.EClabExe")
         except OSError as e:
@@ -64,7 +82,12 @@ class BiologicAPI:
             )
             raise RuntimeError(msg) from e
 
-        self.pipelines: dict[str, dict] = self.get_all_pipelines()
+        self.eclab.EnableMessagesWindows(0)
+        try:
+            self.pipelines: dict[str, dict] = self.get_all_pipelines()
+        except ValueError:
+            sleep(1)  # In case ec-lab needs time to initialize devices
+            self.pipelines: dict[str, dict] = self.get_all_pipelines()
 
     def __enter__(self) -> "BiologicAPI":
         """Do nothing when entering context."""
@@ -93,6 +116,12 @@ class BiologicAPI:
             sn, channel_sns, success = self.eclab.GetDeviceSN(i)
             if not success:
                 continue
+            if not sn:
+                msg = (
+                    "Found a device with serial number 0. "
+                    "The device or EC-lab may not be properly initialized."
+                )
+                raise ValueError(msg)
             device_name = serial_to_name.get(sn)
             if not device_name:
                 device_name = sn
