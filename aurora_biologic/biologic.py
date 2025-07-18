@@ -122,6 +122,17 @@ class BiologicAPI:
             raise ValueError(msg)
         return pipeline_dict
 
+    def select_pipeline(self, pipeline: str) -> None:
+        """Switch EC-lab to the pipeline."""
+        pipeline_dict = self.get_pipeline(pipeline)
+        result = self.eclab.SelectChannel(
+            pipeline_dict["device_index"],
+            pipeline_dict["channel_index"],
+        )
+        if result != 1:
+            msg = "Failed to switch channel"
+            raise ValueError(msg)
+
     def get_status(self, pipeline_ids: list[str] | None = None) -> dict[str, dict]:
         """Get the status of the cycling process for all or selected pipelines.
 
@@ -161,7 +172,7 @@ class BiologicAPI:
             raise FileNotFoundError
 
         pipeline_dict = self.get_pipeline(pipeline)
-
+        self.select_pipeline(pipeline)
         result = self.eclab.LoadSettings(
             pipeline_dict["device_index"],
             pipeline_dict["channel_index"],
@@ -175,7 +186,7 @@ class BiologicAPI:
         """Start the settings on the given pipeline."""
         output_path = Path(output_path)
         pipeline_dict = self.get_pipeline(pipeline)
-
+        self.select_pipeline(pipeline)
         result = self.eclab.RunChannel(
             pipeline_dict["device_index"],
             pipeline_dict["channel_index"],
@@ -194,7 +205,7 @@ class BiologicAPI:
     def stop(self, pipeline: str) -> None:
         """Stop the cycling process on a pipeline."""
         pipeline_dict = self.get_pipeline(pipeline)
-
+        self.select_pipeline(pipeline)
         result = self.eclab.StopChannel(
             pipeline_dict["device_index"],
             pipeline_dict["channel_index"],
