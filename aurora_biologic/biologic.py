@@ -161,6 +161,7 @@ class BiologicAPI:
         if result != 1:
             msg = "Failed to switch channel"
             raise ValueError(msg)
+        sleep(0.05)
 
     def get_status(self, pipeline_ids: list[str] | None = None) -> dict[str, dict]:
         """Get the status of the cycling process for all or selected pipelines.
