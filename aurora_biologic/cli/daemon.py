@@ -36,7 +36,7 @@ def send_command(command: list[str]) -> str:
         with socket.create_connection((HOST, PORT), timeout=10) as sock:
             sock.sendall(" ".join(command).encode())
             response = recv_all(sock)
-            return response.decode()
+            return response.decode().strip()
     except ConnectionRefusedError:
         logger.exception(
             "Biologic daemon not running - run 'biologic daemon' "
@@ -63,8 +63,13 @@ def receive_command(conn: socket.socket, addr: tuple[str, int]) -> None:
             capture_output=True,
             text=True,
         )
-        logger.debug("Sending back result %s", result)
-        conn.sendall(result.stdout.encode() + b"\n" + result.stderr.encode())
+        stdout = result.stdout.encode()
+        stderr = result.stderr.encode()
+        if stderr:
+            conn.sendall(stderr)
+        else:
+            conn.sendall(stdout)
+
     except Exception as e:
         conn.sendall(f"Error: {e}".encode())
     finally:
