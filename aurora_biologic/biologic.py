@@ -255,21 +255,21 @@ class BiologicAPI:
         )
         return start, end, folder, files
 
-    def get_job_id(self, pipeline_ids: str) -> dict[str, str | None]:
+    def get_job_id(self, pipeline_ids: list[str]) -> dict[str, str | None]:
         """Get job IDs of selected channels.
 
         The job ID is the folder name if the job is running, None if it is finished.
         """
         if not pipeline_ids:
-            pipeline_ids = self.pipelines
+            pipeline_ids = list(self.pipelines.keys())
         else:
             if isinstance(pipeline_ids, str):
                 pipeline_ids = [pipeline_ids]
-            pipeline_ids = {pid for pid in pipeline_ids if pid in self.pipelines}
+            pipeline_ids = [pid for pid in pipeline_ids if pid in self.pipelines]
 
         # Get experiment info is slow - first check running channels with status
         status = self.get_status(pipeline_ids)
-        job_ids = {}
+        job_ids: dict[str, str | None] = {}
         for pid in pipeline_ids:
             if status[pid].get("Status", {}) in ["Run", "Pause", "Sync", "Pause_rec"]:
                 start, end, folder, _ = self.get_experiment_info(pid)
