@@ -255,7 +255,7 @@ class BiologicAPI:
         )
         return start, end, folder, files
 
-    def get_job_id(self, pipeline_ids: list[str]) -> dict[str, str | None]:
+    def get_job_id(self, pipeline_ids: str | list[str] | None) -> dict[str, str | None]:
         """Get job IDs of selected channels.
 
         The job ID is the folder name if the job is running, None if it is finished.
