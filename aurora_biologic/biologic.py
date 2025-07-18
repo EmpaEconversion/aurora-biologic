@@ -195,7 +195,7 @@ class BiologicAPI:
         return status
 
     def load_settings(self, pipeline: str, settings_file: str | Path) -> None:
-        """Load settings on to a pipeline."""
+        """Load a protocol onto a pipeline."""
         settings_file = Path(settings_file)
         if not settings_file.exists():
             raise FileNotFoundError
@@ -211,8 +211,8 @@ class BiologicAPI:
             msg = "Failed to load settings."
             raise ValueError(msg)
 
-    def start(self, pipeline: str, output_path: str | Path) -> None:
-        """Start the settings on the given pipeline."""
+    def run_channel(self, pipeline: str, output_path: str | Path) -> None:
+        """Run the protocol on the given pipeline."""
         output_path = Path(output_path)
         pipeline_dict = self.get_pipeline(pipeline)
         self.select_pipeline(pipeline)
@@ -226,10 +226,10 @@ class BiologicAPI:
             msg = "Failed to start measurement."
             raise ValueError(msg)
 
-    def submit(self, pipeline: str, input_file: str | Path, output_file: str | Path) -> None:
-        """Load and start job on channel."""
+    def start(self, pipeline: str, input_file: str | Path, output_file: str | Path) -> None:
+        """Load and start a protocol on a pipeline."""
         self.load_settings(pipeline, input_file)
-        self.start(pipeline, output_file)
+        self.run_channel(pipeline, output_file)
 
     def stop(self, pipeline: str) -> None:
         """Stop the cycling process on a pipeline."""

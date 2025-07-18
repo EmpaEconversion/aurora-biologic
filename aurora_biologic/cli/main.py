@@ -65,7 +65,7 @@ def load_settings(
     pipeline: str,
     settings_file: PathArgument,
 ) -> None:
-    """Load settings on to a pipeline.
+    """Load a protocol on to a pipeline.
 
     Args:
         pipeline (str): the pipeline ID to load settings on
@@ -77,28 +77,28 @@ def load_settings(
 
 
 @app.command()
-def start(
+def run_channel(
     pipeline: str,
     output_path: PathArgument,
 ) -> None:
-    """Start a cycling process on a pipeline.
+    """Run the protocol loaded on a pipeline.
 
     Args:
-        pipeline (str): the pipeline ID to start
+        pipeline (str): the pipeline ID to run settings on
         output_path (Path): path to the output file
 
     """
     with BiologicAPI() as bio:
-        bio.start(pipeline, output_path)
+        bio.run_channel(pipeline, output_path)
 
 
 @app.command()
-def submit(
+def start(
     pipeline: str,
     settings_file: PathArgument,
     output_path: PathArgument,
 ) -> None:
-    """Submit a cycling process on a pipeline.
+    """Submit and run a protocol on a pipeline.
 
     Args:
         pipeline (str): the pipeline ID to submit
@@ -107,7 +107,7 @@ def submit(
 
     """
     with BiologicAPI() as bio:
-        bio.submit(pipeline, settings_file, output_path)
+        bio.start(pipeline, settings_file, output_path)
 
 
 @app.command()
