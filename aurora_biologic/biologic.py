@@ -12,7 +12,7 @@ from types import TracebackType
 from comtypes.client import CreateObject
 from platformdirs import user_config_dir
 
-from aurora_biologic.dicts import status_codes
+from aurora_biologic.dicts import status_codes, status_nested_codes
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,10 @@ serial_to_name = {int(k): v for k, v in serial_to_name.items()}
 
 def _human_readable_status(status: tuple) -> dict:
     """Convert status codes to human-readable strings."""
-    return dict(zip(status_codes.values(), status, strict=True))
+    return {
+        status_codes[i]: status_nested_codes[i].get(s, s) if i in status_nested_codes else s
+        for i, s in enumerate(status[: len(status_codes)])
+    }
 
 
 class BiologicAPI:
