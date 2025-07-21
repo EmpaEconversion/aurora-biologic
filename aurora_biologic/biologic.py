@@ -121,7 +121,8 @@ class BiologicAPI:
                     "Found a device with serial number 0. "
                     "The device or EC-lab may not be properly initialized."
                 )
-                raise ValueError(msg)
+                logger.warning(msg)
+                continue
             device_name = serial_to_name.get(sn)
             if not device_name:
                 device_name = sn
