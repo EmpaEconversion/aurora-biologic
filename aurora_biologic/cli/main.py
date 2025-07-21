@@ -1,6 +1,8 @@
 """CLI for the Biologic battery cycling API."""
 
 import json
+import logging
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -8,6 +10,8 @@ import typer
 
 from aurora_biologic import BiologicAPI
 from aurora_biologic.cli.daemon import send_command, start_daemon
+
+logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
 
 app = typer.Typer(add_completion=False)
 
