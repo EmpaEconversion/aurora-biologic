@@ -15,6 +15,7 @@ import sys
 import threading
 
 logger = logging.getLogger(__name__)
+logger.setLevel("INFO")
 HOST = "127.0.0.1"
 PORT = 48751  # Arbitrary
 
@@ -63,12 +64,10 @@ def receive_command(conn: socket.socket, addr: tuple[str, int]) -> None:
             capture_output=True,
             text=True,
         )
-        stdout = result.stdout.encode()
-        stderr = result.stderr.encode()
-        if stderr:
-            conn.sendall(stderr)
+        if result.returncode != 0:
+            conn.sendall(result.stderr.encode())
         else:
-            conn.sendall(stdout)
+            conn.sendall(result.stdout.encode())
 
     except Exception as e:
         conn.sendall(f"Error: {e}".encode())
@@ -79,7 +78,7 @@ def receive_command(conn: socket.socket, addr: tuple[str, int]) -> None:
 def start_daemon() -> None:
     """Start the Biologic daemon to listen for commands."""
     logger.critical(
-        "Starting listener on %s:%s.\nWARNING: closing this terminal will kill the daemon.",
+        "Starting listener on %s:%s. Closing this terminal will kill the daemon.",
         HOST,
         PORT,
     )
