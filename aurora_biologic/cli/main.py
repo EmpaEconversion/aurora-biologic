@@ -22,7 +22,6 @@ SSHArgument = Annotated[
     typer.Option(
         "--ssh",
         "-s",
-        is_flag=True,
         help="Use SSH to connect to the Biologic daemon.",
     ),
 ]
