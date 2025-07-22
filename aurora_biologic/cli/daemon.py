@@ -25,6 +25,7 @@ PORT = 48751  # Arbitrary
 # Queue avoids OLE-COM commands being executed in parallel
 command_queue = queue.Queue()
 
+
 def recv_all(sock: socket.socket) -> bytes:
     """Receive all data from the socket until it is closed."""
     chunks = []
@@ -66,11 +67,12 @@ def receive_command(conn: socket.socket, addr: tuple[str, int]) -> None:
         command_queue.put((command, conn, addr))
 
     except Exception as e:
-        logger.exception("Failed to read command from %s: %s", addr, e)
+        logger.exception("Failed to read command from %s", addr)
         with contextlib.suppress(Exception):
             conn.sendall(f"Error: {e}".encode())
 
         conn.close()
+
 
 def command_worker() -> None:
     """Worker thread that processes commands from the queue one at a time."""

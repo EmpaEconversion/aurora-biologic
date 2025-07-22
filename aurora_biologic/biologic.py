@@ -217,7 +217,9 @@ class BiologicAPI:
 
     @retry_with_backoff()
     def _olecom_get_experiment_infos(
-        self, dev_idx: int, channel_idx: int,
+        self,
+        dev_idx: int,
+        channel_idx: int,
     ) -> tuple[str, str, str, tuple[str | None]]:
         start, end, folder, files, result = self.eclab.GetExperimentInfos(
             dev_idx,
