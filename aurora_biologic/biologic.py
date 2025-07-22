@@ -138,11 +138,11 @@ class BiologicAPI:
 
         """
         devices = {}
-        for i in range(17):  # TODO: is there a way to get the total number of devices?
+        for i in range(100):
             sn, channel_sns, success = self.eclab.GetDeviceSN(i)
-            if not success:
-                continue
-            if not sn:
+            if not success:  # Index out of range - stop searching
+                break
+            if not sn:  # Device found but not connected
                 msg = (
                     "Found a device with serial number 0. "
                     "The device or EC-lab may not be properly initialized."
