@@ -49,6 +49,8 @@ def pipelines(
     """
     if ssh:
         command = ["biologic", "pipelines"]
+        if indent:
+            command += [f"--indent={indent}"]
         typer.echo(send_command(command))
         return
     with BiologicAPI() as bio:
