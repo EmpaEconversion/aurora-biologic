@@ -6,7 +6,7 @@
 </br>
 
 ## Overview
-`aurora-biologic` provides a standalone Python API and command line interface (CLI) to control Biologic cylers.
+`aurora-biologic` provides a standalone Python API and command line interface (CLI) to control Biologic cyclers.
 
 It is designed and tested on MPG2 cyclers using EC-lab 11.52.
 
@@ -52,7 +52,7 @@ which will look like:
 {
     "serial_to_name": {
         "12345": "MPG2-1",
-        "12346": "MPG2-2",
+        "12346": "MPG2-2"
     },
     "eclab_path": "C:/Program Files (x86)/EC-Lab/EClab.exe"
 }
@@ -91,8 +91,8 @@ from aurora_biologic import BiologicAPI
 with BiologicAPI() as bio:
     bio.start(
         "my_pipeline_id",
-        "path/to/my_experiment.mps"
-        "path/to/an/output.mpr"
+        "path/to/my_experiment.mps",
+        "path/to/an/output.mpr",
     )
 ```
 
