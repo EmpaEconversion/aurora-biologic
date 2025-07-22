@@ -3,7 +3,7 @@ name = "aurora-biologic"
 dynamic = ["version"]
 description = "Python API for Biologic EC-lab potentiostats"
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
