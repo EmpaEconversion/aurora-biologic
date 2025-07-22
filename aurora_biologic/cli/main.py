@@ -81,6 +81,8 @@ def status(
         command = ["biologic", "status"]
         if pipeline_ids:
             command.extend(pipeline_ids)
+        if indent:
+            command += [f"--indent={indent}"]
         typer.echo(send_command(command))
         return
     with BiologicAPI() as bio:
@@ -199,6 +201,8 @@ def get_job_id(
         command = ["biologic", "get-job-id"]
         if pipeline_ids:
             command.extend(pipeline_ids)
+        if indent:
+            command += [f"--indent={indent}"]
         typer.echo(send_command(command))
         return
     with BiologicAPI() as bio:
