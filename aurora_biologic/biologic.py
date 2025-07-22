@@ -277,7 +277,10 @@ class BiologicAPI:
         if output_path.is_dir():
             msg = "Must provide a full file path, not directory."
             raise ValueError(msg)
-        output_path.mkdir(parents=True, exist_ok=True)
+        if output_path.with_suffix(".mps").exists():
+            msg = "This experiment already exists! Use a new filepath."
+            raise ValueError(msg)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         dev_idx, channel_idx = self._get_pipeline_indices(pipeline)
         self._olecom_select_channel(dev_idx, channel_idx)
         self._olecom_run_channel(dev_idx, channel_idx, str(output_path))
