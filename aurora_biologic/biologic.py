@@ -4,9 +4,11 @@ Contains the class BiologicAPI that provides methods to interact with the EC-lab
 potentiostats.
 """
 
+import functools
 import json
 import logging
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 from time import sleep
 from types import TracebackType
@@ -66,8 +68,33 @@ def _human_readable_status(status: tuple) -> dict:
     }
 
 
+def retry_with_backoff(delays_s: tuple[float, ...] = (0.01, 0.05, 0.25)) -> Callable:
+    """Retry a function with exponential backoff.
+
+    OLE-COM functions can fail if too many requests are made in a short time.
+    This decorator will retry the function with increasing delays if
+    RuntimeErrors are raised.
+    """
+
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args: tuple, **kwargs: dict) -> None:
+            for delay in delays_s:
+                try:
+                    return func(*args, **kwargs)
+                except RuntimeError:  # noqa: PERF203
+                    sleep(delay)
+            return func(*args, **kwargs)  # Final attempt, allow to raise error
+
+        return wrapper
+
+    return decorator
+
+
 class BiologicAPI:
     """Class to interact with Biologic EC-lab potentiostats."""
+
+    ### Initialization and context management ###
 
     def __init__(self) -> None:
         """Initialize the API with the host and port."""
@@ -81,13 +108,10 @@ class BiologicAPI:
                 "cd to the directory and use ECLab /regserver"
             )
             raise RuntimeError(msg) from e
-
+        sleep(0.001)
         self.eclab.EnableMessagesWindows(0)
-        try:
-            self.pipelines: dict[str, dict] = self.get_all_pipelines()
-        except ValueError:
-            sleep(1)  # In case ec-lab needs time to initialize devices
-            self.pipelines: dict[str, dict] = self.get_all_pipelines()
+        sleep(0.001)
+        self.pipelines: dict[str, dict] = self._get_all_pipelines()
 
     def __enter__(self) -> "BiologicAPI":
         """Do nothing when entering context."""
@@ -104,7 +128,9 @@ class BiologicAPI:
     def __del__(self) -> None:
         """Do nothing when deleted."""
 
-    def get_all_pipelines(self) -> dict[str, dict]:
+    ### Private methods to get pipelines and pipeline details ###
+
+    def _get_all_pipelines(self) -> dict[str, dict]:
         """Get all pipelines (device+channel) connected to EC-lab.
 
         Returns:
@@ -142,7 +168,7 @@ class BiologicAPI:
                 }
         return devices
 
-    def get_pipeline(self, pipeline: str) -> dict[str, dict]:
+    def _get_pipeline(self, pipeline: str) -> dict[str, int]:
         """Get a specific pipeline by its ID. Raise ValueError if not found."""
         pipeline_dict = self.pipelines.get(pipeline)
         if not pipeline_dict:
@@ -152,17 +178,56 @@ class BiologicAPI:
             raise ValueError(msg)
         return pipeline_dict
 
-    def select_pipeline(self, pipeline: str) -> None:
-        """Switch EC-lab to the pipeline."""
-        pipeline_dict = self.get_pipeline(pipeline)
-        result = self.eclab.SelectChannel(
-            pipeline_dict["device_index"],
-            pipeline_dict["channel_index"],
+    def _get_pipeline_indices(self, pipeline: str) -> tuple[int, int]:
+        """Get device and channel indices for a pipeline."""
+        pipeline_dict = self._get_pipeline(pipeline)
+        return pipeline_dict["device_index"], pipeline_dict["channel_index"]
+
+    ### EC-lab OLE-COM methods with retrying on failure ###
+
+    @retry_with_backoff()
+    def _olecom_select_channel(self, dev_idx: int, channel_idx: int) -> None:
+        """Select a channel using OLE-COM with device and channel index."""
+        result = self.eclab.SelectChannel(dev_idx, channel_idx)
+        if result != 1:
+            raise RuntimeError
+
+    @retry_with_backoff()
+    def _olecom_load_settings(self, dev_idx: int, channel_idx: int, settings_file: str) -> None:
+        """Load settings on a channel using OLE-COM."""
+        result = self.eclab.LoadSettings(
+            dev_idx,
+            channel_idx,
+            str(settings_file),
         )
         if result != 1:
-            msg = "Failed to switch channel"
-            raise ValueError(msg)
-        sleep(0.05)
+            raise RuntimeError
+
+    @retry_with_backoff()
+    def _olecom_run_channel(self, dev_idx: int, channel_idx: int, output_path: str) -> None:
+        result = self.eclab.RunChannel(dev_idx, channel_idx, str(output_path))
+        if result != 1:
+            raise RuntimeError
+
+    @retry_with_backoff()
+    def _olecom_stop_channel(self, dev_idx: int, channel_idx: int) -> None:
+        result = self.eclab.StopChannel(dev_idx, channel_idx)
+        if result != 1:
+            raise RuntimeError
+
+    @retry_with_backoff()
+    def _olecom_get_experiment_infos(
+        self, dev_idx: int, channel_idx: int,
+    ) -> tuple[str, str, str, tuple[str | None]]:
+        start, end, folder, files, result = self.eclab.GetExperimentInfos(
+            dev_idx,
+            channel_idx,
+        )
+        if result != 1:
+            raise RuntimeError
+        return start, end, folder, files
+
+    ### Public API methods ###
 
     def get_status(self, pipeline_ids: list[str] | None = None) -> dict[str, dict]:
         """Get the status of the cycling process for all or selected pipelines.
@@ -188,7 +253,7 @@ class BiologicAPI:
         status = {}
         for pipeline_id, pipeline_dict in pipeline_dicts.items():
             status[pipeline_id] = _human_readable_status(
-                self.eclab.MeasureStatus(
+                self.eclab.MeasureStatus(  # does not have fail state, no retrying
                     pipeline_dict["device_index"],
                     pipeline_dict["channel_index"],
                 ),
@@ -202,31 +267,20 @@ class BiologicAPI:
         if not settings_file.exists():
             raise FileNotFoundError
 
-        pipeline_dict = self.get_pipeline(pipeline)
-        self.select_pipeline(pipeline)
-        result = self.eclab.LoadSettings(
-            pipeline_dict["device_index"],
-            pipeline_dict["channel_index"],
-            str(settings_file),
-        )
-        if result != 1:
-            msg = "Failed to load settings."
-            raise ValueError(msg)
+        dev_idx, channel_idx = self._get_pipeline_indices(pipeline)
+        self._olecom_select_channel(dev_idx, channel_idx)
+        self._olecom_load_settings(dev_idx, channel_idx, str(settings_file))
 
     def run_channel(self, pipeline: str, output_path: str | Path) -> None:
         """Run the protocol on the given pipeline."""
         output_path = Path(output_path)
-        pipeline_dict = self.get_pipeline(pipeline)
-        self.select_pipeline(pipeline)
-        result = self.eclab.RunChannel(
-            pipeline_dict["device_index"],
-            pipeline_dict["channel_index"],
-            str(output_path),
-        )
-
-        if result != 1:
-            msg = "Failed to start measurement."
+        if output_path.is_dir():
+            msg = "Must provide a full file path, not directory."
             raise ValueError(msg)
+        output_path.mkdir(parents=True, exist_ok=True)
+        dev_idx, channel_idx = self._get_pipeline_indices(pipeline)
+        self._olecom_select_channel(dev_idx, channel_idx)
+        self._olecom_run_channel(dev_idx, channel_idx, str(output_path))
 
     def start(self, pipeline: str, input_file: str | Path, output_file: str | Path) -> None:
         """Load and start a protocol on a pipeline."""
@@ -235,27 +289,14 @@ class BiologicAPI:
 
     def stop(self, pipeline: str) -> None:
         """Stop the cycling process on a pipeline."""
-        pipeline_dict = self.get_pipeline(pipeline)
-        self.select_pipeline(pipeline)
-        result = self.eclab.StopChannel(
-            pipeline_dict["device_index"],
-            pipeline_dict["channel_index"],
-        )
-
-        if result != 1:
-            msg = "Failed to stop measurement."
-            raise ValueError(msg)
+        dev_idx, channel_idx = self._get_pipeline_indices(pipeline)
+        self._olecom_stop_channel(dev_idx, channel_idx)
 
     def get_experiment_info(self, pipeline: str) -> tuple[str, str, str, tuple[str | None]]:
         """Return various experiment info for the job running on the pipeline."""
-        pipeline_dict = self.get_pipeline(pipeline)
-        self.select_pipeline(pipeline)
-        # start, end, folder, files, result, mode
-        start, end, folder, files, result = self.eclab.GetExperimentInfos(
-            pipeline_dict["device_index"],
-            pipeline_dict["channel_index"],
-        )
-        return start, end, folder, files
+        dev_idx, channel_idx = self._get_pipeline_indices(pipeline)
+        self._olecom_select_channel(dev_idx, channel_idx)
+        return self._olecom_get_experiment_infos(dev_idx, channel_idx)
 
     def get_job_id(self, pipeline_ids: str | list[str] | None) -> dict[str, str | None]:
         """Get job IDs of selected channels.
