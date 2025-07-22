@@ -29,16 +29,19 @@ if not config_path.exists():
     config_dir.mkdir(parents=True, exist_ok=True)
     default_config = {
         "serial_to_name": {
-            12345: "example_device_1",
-            12346: "example_device_2",
+            12345: "MPG2-1",
+            12346: "MPG2-2",
         },
+        "eclab_path": "C:/Program Files (x86)/EC-Lab/EClab.exe",
     }
     with config_path.open("w") as f:
         json.dump(default_config, f, indent=4)
-    logger.warning(
-        "Config file created at %s. You must put serial number: device name pairs in the file.",
-        config_dir,
+    msg = (
+        "IMPORTANT: Config file created at %s. "
+        "You must put serial number: device name pairs in the file, "
+        "and ensure the EC-lab executable path is correct."
     )
+    logger.critical(msg, config_dir)
 
 with config_path.open("r") as f:
     CONFIG = json.load(f)
