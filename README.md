@@ -8,7 +8,7 @@
 ## Overview
 `aurora-biologic` provides a standalone Python API and command line interface (CLI) to control Biologic cyclers.
 
-It is designed and tested on MPG2 cyclers using EC-lab 11.52.
+It is designed and tested on MPG2 cyclers using EC-lab 11.52 and 11.61.
 
 ## Features
 - CLI and Python API
@@ -17,6 +17,8 @@ It is designed and tested on MPG2 cyclers using EC-lab 11.52.
 - Load protocols onto channels
 - Start and stop experiments
 
+For parsing binary data from Biologic, we recommend [`yadg`](https://github.com/dgbowl/yadg).
+
 ## Installation
 Install on a Windows PC with EC-lab >11.52 installed.
 > [!IMPORTANT]
@@ -24,11 +26,18 @@ Install on a Windows PC with EC-lab >11.52 installed.
 
 OLE/COM is a Windows interface for programs to expose their functionality to third-parties, which is supported by EC-lab.
 
-Open `cmd` or `powershell` as administrator, go to your folder containing `EClab.exe` and register the server:
+Open a terminal as administrator, go to your folder containing `EClab.exe` and register the server:
 
-```bash
+`cmd`
+```cmd
 cd "C:/Program files (x86)/EC-lab"
-ECLab /regserver
+eclab \regserver
+```
+
+`powershell`
+```powershell
+cd "C:/Program files (x86)/EC-lab"
+.\eclab \\regserver
 ```
 
 You can also deregister in the same way with `/unregserver`.
@@ -121,6 +130,8 @@ Instead of trying to run OLE/COM commands directly in the non-interactive sessio
 - [Graham Kimbell](https://github.com/g-kimbell)
 
 ## Acknowledgements
+
+Special thanks to Julian Diener from Biologic for their advice and support.
 
 This software was developed at the Laboratory of Materials for Energy Conversion at Empa, the Swiss Federal Laboratories for Materials Science and Technology, and supported by funding from the [IntelLiGent](https://heuintelligent.eu/) project from the European Union’s research and innovation program under grant agreement No. 101069765, and from the Swiss State Secretariat for Education, Research, and Innovation (SERI) under contract No. 22.001422.
 
