@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 APP_NAME = "aurora-biologic"
 CONFIG_FILENAME = "config.json"
-config_dir = Path(user_config_dir(APP_NAME))
+config_dir = Path(user_config_dir(APP_NAME, appauthor=False))
 config_path = config_dir / CONFIG_FILENAME
 if not config_path.exists():
     config_dir.mkdir(parents=True, exist_ok=True)
