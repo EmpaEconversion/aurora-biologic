@@ -3,6 +3,7 @@
 
 import subprocess
 
+
 class TestCLI:
     """Test the CLI commands."""
 
@@ -16,7 +17,9 @@ class TestCLI:
         print(result)
 
         # Assert it runs without crashing
-        assert result.returncode == 0, f"CLI exited with {result.returncode}. Stderr: {result.stderr}"
+        assert result.returncode == 0, (
+            f"CLI exited with {result.returncode}. Stderr: {result.stderr}"
+        )
 
         # Check expected help text output
         assert "usage" in result.stdout.lower(), "Help output missing expected content"

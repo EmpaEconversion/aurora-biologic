@@ -5,6 +5,7 @@ import pkgutil
 
 import aurora_biologic
 
+
 class TestImportAllModules:
     """Import all modules."""
 
