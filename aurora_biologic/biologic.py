@@ -192,6 +192,12 @@ class BiologicAPI:
         pipeline_dict = self._get_pipeline(pipeline)
         return pipeline_dict["device_index"], pipeline_dict["channel_index"]
 
+    def _assert_online(self, pipeline: str) -> None:
+        """Raise error if pipeline belongs to offline device."""
+        if not self._get_pipeline(pipeline).get("is_online"):
+            msg = "Device is offline"
+            raise ValueError(msg)
+
     ### EC-lab OLE-COM methods with retrying on failure ###
 
     @retry_with_backoff()
@@ -301,6 +307,7 @@ class BiologicAPI:
 
     def run_channel(self, pipeline: str, output_path: str | Path) -> None:
         """Run the protocol on the given pipeline."""
+        self._assert_online(pipeline)
         output_path = Path(output_path).resolve()
         if output_path.is_dir():
             msg = "Must provide a full file path, not directory."
@@ -317,6 +324,7 @@ class BiologicAPI:
 
     def stop(self, pipeline: str) -> None:
         """Stop the cycling process on a pipeline."""
+        self._assert_online(pipeline)
         dev_idx, channel_idx = self._get_pipeline_indices(pipeline)
         self._olecom_stop_channel(dev_idx, channel_idx)
 
