@@ -145,14 +145,19 @@ class BiologicAPI:
             sn, channel_sns, success = self.eclab.GetDeviceSN(i)
             if not success:  # Index out of range - stop searching
                 break
-            if not sn:  # Device found but not connected
+
+            is_online = bool(sn)
+
+            if is_online:
+                device_name = serial_to_name.get(sn)
+            else:  # Device found but not connected
                 msg = (
-                    "Found a device with serial number 0. "
-                    "The device or EC-lab may not be properly initialized."
+                    f"Device position {i}: serial number and name not found, "
+                    "it may be disconnected, uninitialized, or a virtual device. "
+                    f"Naming the device 'OFFLINE_{i}'."
                 )
                 logger.warning(msg)
-                continue
-            device_name = serial_to_name.get(sn)
+                device_name = f"OFFLINE_{i}"
             if not device_name:
                 device_name = sn
                 logger.warning(
@@ -168,6 +173,7 @@ class BiologicAPI:
                     "device_serial_number": int(sn),
                     "channel_index": j,
                     "channel_serial_number": int(channel_sn),
+                    "is_online": is_online,
                 }
         return devices
 
@@ -234,19 +240,36 @@ class BiologicAPI:
 
     ### Public API methods ###
 
-    def get_status(self, pipeline_ids: list[str] | None = None) -> dict[str, dict]:
+    def get_pipelines(self, *, show_offline: bool = False) -> dict[str, dict]:
+        """Show pipeline details: index in EC-Lab, serial number, connection status etc.
+
+        Args:
+            show_offline (bool, default: False): Also show offline devices.
+
+        """
+        if show_offline:
+            return self.pipelines
+        return {k: v for k, v in self.pipelines.items() if v["is_online"]}
+
+    def get_status(
+        self, pipeline_ids: list[str] | None = None, *, show_offline: bool = False
+    ) -> dict[str, dict]:
         """Get the status of the cycling process for all or selected pipelines.
 
         Args:
             pipeline_ids (list[str] | None): List of pipeline IDs to get status from.
                 If None, will use the full channel map.
+            show_offline (bool, default: False): Also show offline devices.
 
         Returns:
             dict: A dictionary with pipeline IDs as keys and their status as values.
 
         """
         if not pipeline_ids:
-            pipeline_dicts = self.pipelines
+            if show_offline:
+                pipeline_dicts = self.pipelines
+            else:
+                pipeline_dicts = {k: v for k, v in self.pipelines.items() if v["is_online"]}
         else:
             if isinstance(pipeline_ids, str):
                 pipeline_ids = [pipeline_ids]
@@ -303,13 +326,27 @@ class BiologicAPI:
         self._olecom_select_channel(dev_idx, channel_idx)
         return self._olecom_get_experiment_infos(dev_idx, channel_idx)
 
-    def get_job_id(self, pipeline_ids: str | list[str] | None) -> dict[str, str | None]:
+    def get_job_id(
+        self, pipeline_ids: str | list[str] | None, *, show_offline: bool = False
+    ) -> dict[str, str | None]:
         """Get job IDs of selected channels.
 
         The job ID is the folder name if the job is running, None if it is finished.
+
+        Args:
+            pipeline_ids (list[str] | None): List of pipeline IDs to get status from.
+                If None, will use the full channel map.
+            show_offline (bool, default: False): Also show offline devices.
+
+        Returns:
+            dict: A dictionary with pipeline IDs as keys and Job IDs as values.
+
         """
         if not pipeline_ids:
-            pipeline_ids = list(self.pipelines.keys())
+            if show_offline:
+                pipeline_ids = list(self.pipelines.keys())
+            else:
+                pipeline_ids = [k for k, v in self.pipelines.items() if v["is_online"]]
         else:
             if isinstance(pipeline_ids, str):
                 pipeline_ids = [pipeline_ids]
