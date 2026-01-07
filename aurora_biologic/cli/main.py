@@ -15,9 +15,20 @@ logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
 
 app = typer.Typer(add_completion=False)
 
-IndentOption = Annotated[int | None, typer.Option(help="Indent the output.")]
-PipelinesArgument = Annotated[list[str] | None, typer.Argument()]
-SSHArgument = Annotated[
+IndentOption = Annotated[int | None, typer.Option(help="Indentation on JSON string output.")]
+SinglePipelineArgument = Annotated[
+    str,
+    typer.Argument(
+        help="Pipeline ID. Use 'biologic pipelines' to see available.",
+    ),
+]
+PipelinesArgument = Annotated[
+    list[str] | None,
+    typer.Argument(
+        help="List of pipeline IDs. Will use the full channel map if not provided.",
+    ),
+]
+SSHOption = Annotated[
     bool,
     typer.Option(
         "--ssh",
@@ -26,85 +37,78 @@ SSHArgument = Annotated[
     ),
 ]
 NumberOfPoints = Annotated[int, typer.Argument()]
-PathArgument = Annotated[Path, typer.Argument(help="Path to a file")]
+InputPathArgument = Annotated[Path, typer.Argument(help="Path to a .mps settings file")]
+OutputPathArgument = Annotated[
+    Path,
+    typer.Argument(
+        help="Path to the output file. Several files will be generated with different suffixes."
+    ),
+]
+ShowOfflineOption = Annotated[
+    bool,
+    typer.Option(
+        "--show-offline",
+        "-a",
+        help="Show all devices, including offline (disconnected or virtual) devices.",
+    ),
+]
 
 
 @app.command()
 def pipelines(
     indent: IndentOption = None,
-    ssh: SSHArgument = False,
+    ssh: SSHOption = False,
+    show_offline: ShowOfflineOption = False,
 ) -> None:
-    """Return details of all connected instruments.
+    """Get details of all connected instruments.
 
     Returns a dictionary as a JSON string.
-
-    Example usage:
-    >>> biologic pipelines
-    {"MPG2-16-1": {"device_index": 0, "device_serial_number": 365 ... } ... }
-
-    Args:
-        indent (optional): an integer number that controls the identation of the printed output
-        ssh (optional): must be set if running in a non-interactive terminal session like SSH
-
     """
     if ssh:
         command = ["biologic", "pipelines"]
         if indent:
             command += [f"--indent={indent}"]
+        if show_offline:
+            command += ["--show-offline"]
         typer.echo(send_command(command))
         return
     with BiologicAPI() as bio:
-        typer.echo(json.dumps(bio.pipelines, indent=indent))
+        typer.echo(json.dumps(bio.get_pipelines(show_offline=show_offline), indent=indent))
 
 
 @app.command()
 def status(
     pipeline_ids: PipelinesArgument = None,
     indent: IndentOption = None,
-    ssh: SSHArgument = False,
+    ssh: SSHOption = False,
+    show_offline: ShowOfflineOption = False,
 ) -> None:
     """Get the status of the cycling process for all or selected pipelines.
 
     Returns a dictionary as a JSON string.
-
-    Example usage:
-    >>> biologic status
-    {"MPG2-16-1": { ... }}
-
-    Args:
-        pipeline_ids (optional): list of pipeline IDs to get status from
-            will use the full channel map if not provided
-        indent (optional): an integer number that controls the identation of the printed output
-        ssh (optional): must be set if running in a non-interactive terminal session like SSH
-
     """
     if ssh:
         command = ["biologic", "status"]
         if pipeline_ids:
             command.extend(pipeline_ids)
+        if show_offline:
+            command += ["--show-offline"]
         if indent:
             command += [f"--indent={indent}"]
         typer.echo(send_command(command))
         return
     with BiologicAPI() as bio:
-        status = bio.get_status(pipeline_ids=pipeline_ids)
+        status = bio.get_status(pipeline_ids=pipeline_ids, show_offline=show_offline)
         typer.echo(json.dumps(status, indent=indent))
 
 
 @app.command()
 def load_settings(
-    pipeline: str,
-    settings_file: PathArgument,
-    ssh: SSHArgument = False,
+    pipeline: SinglePipelineArgument,
+    settings_file: InputPathArgument,
+    ssh: SSHOption = False,
 ) -> None:
-    """Load a protocol on to a pipeline.
-
-    Args:
-        pipeline (str): the pipeline ID to load settings on
-        settings_file (Path): path to the settings file
-        ssh (optional): must be set if running in a non-interactive terminal session like SSH
-
-    """
+    """Load settings on to a pipeline."""
     if ssh:
         command = ["biologic", "load-settings", pipeline, str(settings_file)]
         typer.echo(send_command(command))
@@ -115,18 +119,11 @@ def load_settings(
 
 @app.command()
 def run_channel(
-    pipeline: str,
-    output_path: PathArgument,
-    ssh: SSHArgument = False,
+    pipeline: SinglePipelineArgument,
+    output_path: OutputPathArgument,
+    ssh: SSHOption = False,
 ) -> None:
-    """Run the protocol loaded on a pipeline.
-
-    Args:
-        pipeline (str): the pipeline ID to run settings on
-        output_path (Path): path to the output file
-        ssh (optional): must be set if running in a non-interactive terminal session like SSH
-
-    """
+    """Run the settings loaded on a pipeline."""
     if ssh:
         command = ["biologic", "run-channel", pipeline, str(output_path)]
         typer.echo(send_command(command))
@@ -137,20 +134,12 @@ def run_channel(
 
 @app.command()
 def start(
-    pipeline: str,
-    settings_file: PathArgument,
-    output_path: PathArgument,
-    ssh: SSHArgument = False,
+    pipeline: SinglePipelineArgument,
+    settings_file: InputPathArgument,
+    output_path: OutputPathArgument,
+    ssh: SSHOption = False,
 ) -> None:
-    """Submit and run a protocol on a pipeline.
-
-    Args:
-        pipeline (str): the pipeline ID to submit
-        settings_file (Path): path to the settings file
-        output_path (Path): path to the output file
-        ssh (optional): must be set if running in a non-interactive terminal session like SSH
-
-    """
+    """Load and run settings on a pipeline."""
     if ssh:
         command = ["biologic", "start", pipeline, str(settings_file), str(output_path)]
         typer.echo(send_command(command))
@@ -161,16 +150,10 @@ def start(
 
 @app.command()
 def stop(
-    pipeline: str,
-    ssh: SSHArgument = False,
+    pipeline: SinglePipelineArgument,
+    ssh: SSHOption = False,
 ) -> None:
-    """Stop the cycling process on a pipeline.
-
-    Args:
-        pipeline (str): the pipeline ID to stop
-        ssh (optional): must be set if running in a non-interactive terminal session like SSH
-
-    """
+    """Stop the cycling process on a pipeline."""
     if ssh:
         command = ["biologic", "stop", pipeline]
         typer.echo(send_command(command))
@@ -183,31 +166,29 @@ def stop(
 def get_job_id(
     pipeline_ids: PipelinesArgument = None,
     indent: IndentOption = None,
-    ssh: SSHArgument = False,
+    ssh: SSHOption = False,
+    show_offline: ShowOfflineOption = False,
 ) -> None:
     """Get the job id for selected pipelines.
 
-    Args:
-        pipeline_ids (optional): list of pipeline IDs to get job IDs from
-            will use the full channel map if not provided
-        indent (optional): an integer number that controls the identation of the printed output
-        ssh (optional): must be set if running in a non-interactive terminal session like SSH
+    If the job is running, the job ID is the folder name, otherwise it is None.
 
-    Returns:
-        A dictionary with pipeline IDs as keys and job IDs as values.
-        If the job is running, the job ID is the folder name, otherwise it is None.
-
+    Returns a dictionary as a JSON string.
     """
     if ssh:
         command = ["biologic", "get-job-id"]
         if pipeline_ids:
             command.extend(pipeline_ids)
+        if show_offline:
+            command += ["--show-offline"]
         if indent:
             command += [f"--indent={indent}"]
         typer.echo(send_command(command))
         return
     with BiologicAPI() as bio:
-        typer.echo(json.dumps(bio.get_job_id(pipeline_ids), indent=indent))
+        typer.echo(
+            json.dumps(bio.get_job_id(pipeline_ids, show_offline=show_offline), indent=indent)
+        )
 
 
 @app.command()
