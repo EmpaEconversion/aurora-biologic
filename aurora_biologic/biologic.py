@@ -268,7 +268,7 @@ class BiologicAPI:
 
     def load_settings(self, pipeline: str, settings_file: str | Path) -> None:
         """Load a protocol onto a pipeline."""
-        settings_file = Path(settings_file)
+        settings_file = Path(settings_file).resolve()
         if not settings_file.exists():
             raise FileNotFoundError
 
@@ -278,7 +278,7 @@ class BiologicAPI:
 
     def run_channel(self, pipeline: str, output_path: str | Path) -> None:
         """Run the protocol on the given pipeline."""
-        output_path = Path(output_path)
+        output_path = Path(output_path).resolve()
         if output_path.is_dir():
             msg = "Must provide a full file path, not directory."
             raise ValueError(msg)
