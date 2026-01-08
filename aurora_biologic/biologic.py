@@ -387,3 +387,88 @@ class BiologicAPI:
             else:
                 job_ids[pid] = None
         return job_ids
+
+
+### Wrapper functions ###
+
+# This allows all functions to be used without explicitly creating a BiologicAPI object
+
+_instance: BiologicAPI | None = None
+
+
+def _get_api() -> BiologicAPI:
+    """Only allow one 'global' API."""
+    global _instance  # noqa: PLW0603
+    _instance = _instance or BiologicAPI()
+    return _instance
+
+
+def get_pipelines(*, show_offline: bool = False) -> dict[str, dict]:
+    """Show pipeline details: index in EC-Lab, serial number, connection status etc.
+
+    Args:
+        show_offline (bool, default: False): Also show offline devices.
+
+    """
+    return _get_api().get_pipelines(show_offline=show_offline)
+
+
+def get_status(
+    pipeline_ids: list[str] | None = None, *, show_offline: bool = False
+) -> dict[str, dict]:
+    """Get the status of the cycling process for all or selected pipelines.
+
+    Args:
+        pipeline_ids (list[str] | None): List of pipeline IDs to get status from.
+            If None, will use the full channel map.
+        show_offline (bool, default: False): Also show offline devices.
+
+    Returns:
+        dict: A dictionary with pipeline IDs as keys and their status as values.
+
+    """
+    return _get_api().get_status(pipeline_ids, show_offline=show_offline)
+
+
+def load_settings(pipeline: str, settings_file: str | Path) -> None:
+    """Load a protocol onto a pipeline."""
+    return _get_api().load_settings(pipeline, settings_file)
+
+
+def run_channel(pipeline: str, output_path: str | Path) -> None:
+    """Run the protocol on the given pipeline."""
+    return _get_api().run_channel(pipeline, output_path)
+
+
+def start(pipeline: str, input_file: str | Path, output_file: str | Path) -> None:
+    """Stop the cycling process on a pipeline."""
+    return _get_api().start(pipeline, input_file, output_file)
+
+
+def stop(pipeline: str) -> None:
+    """Return various experiment info for the job running on the pipeline."""
+    return _get_api().stop(pipeline)
+
+
+def get_experiment_info(pipeline: str) -> tuple[str, str, str, tuple[str | None]]:
+    """Return various experiment info for the job running on the pipeline."""
+    return _get_api().get_experiment_info(pipeline)
+
+
+def get_job_id(
+    pipeline_ids: str | list[str] | None, *, show_offline: bool = False
+) -> dict[str, str | None]:
+    """Get job IDs of selected channels.
+
+    The job ID is the folder name if the job is running, None if it is finished.
+
+    Args:
+        pipeline_ids (list[str] | None): List of pipeline IDs to get status from.
+            If None, will use the full channel map.
+        show_offline (bool, default: False): Also show offline devices.
+
+    Returns:
+        dict: A dictionary with pipeline IDs as keys and Job IDs as values.
+
+    """
+    return _get_api().get_job_id(pipeline_ids, show_offline=show_offline)
