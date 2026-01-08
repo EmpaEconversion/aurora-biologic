@@ -69,11 +69,14 @@ class BiologicAPI:
 
     ### Initialization and context management ###
 
-    def __init__(self) -> None:
+    def __init__(self, eclab_connection=None) -> None:  # noqa: ANN001
         """Load settings, open EC-lab, create COM object, find pipelines."""
         self.CONFIG = self._load_config()
-        self._open_eclab()
-        self.eclab = self._connect_to_eclab()
+        if eclab_connection is None:
+            self._open_eclab()
+            self.eclab = self._connect_to_eclab()
+        else:  # For mocking in tests
+            self.eclab = eclab_connection
         self.pipelines = self._get_all_pipelines()
 
     def __enter__(self) -> "BiologicAPI":
@@ -401,10 +404,10 @@ class BiologicAPI:
 _instance: BiologicAPI | None = None
 
 
-def _get_api() -> BiologicAPI:
+def _get_api(eclab_connection=None) -> BiologicAPI:  # noqa: ANN001
     """Only allow one 'global' API."""
     global _instance  # noqa: PLW0603
-    _instance = _instance or BiologicAPI()
+    _instance = _instance or BiologicAPI(eclab_connection)
     return _instance
 
 
