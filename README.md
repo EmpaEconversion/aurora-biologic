@@ -11,9 +11,9 @@
 [![Coverage](https://img.shields.io/codecov/c/github/empaeconversion/aurora-biologic)](https://app.codecov.io/gh/EmpaEconversion/aurora-biologic)
 
 
-`aurora-biologic` provides a standalone Python API and command line interface (CLI) to control Biologic cyclers.
+A standalone Python API and command line interface (CLI) to control Biologic battery cyclers.
 
-It is designed and tested on MPG2 cyclers using EC-lab 11.52 and 11.61.
+Designed and tested on MPG2 cyclers using EC-lab 11.52 and 11.61.
 
 ## Features
 - CLI and Python API
