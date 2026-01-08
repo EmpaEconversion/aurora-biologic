@@ -13,6 +13,7 @@ from collections.abc import Callable
 from pathlib import Path
 from time import sleep
 from types import TracebackType
+from typing import Any
 
 import psutil
 from comtypes.client import CreateObject
@@ -61,6 +62,10 @@ def retry_with_backoff(delays_s: tuple[float, ...] = (0.01, 0.05, 0.25)) -> Call
 
 class BiologicAPI:
     """Class to interact with Biologic EC-lab potentiostats."""
+
+    CONFIG: dict
+    eclab: Any
+    pipelines: dict[str, dict]
 
     ### Initialization and context management ###
 
@@ -130,7 +135,7 @@ class BiologicAPI:
                 )
                 raise ValueError(msg)
 
-    def _connect_to_eclab(self):  # noqa: ANN202, com object is dynamic wrapper
+    def _connect_to_eclab(self) -> Any:  # noqa: ANN401, com object is dynamic wrapper
         """Return COM object connected to open EC-lab instance."""
         try:
             eclab = CreateObject("EClabCOM.EClabExe")
@@ -273,7 +278,7 @@ class BiologicAPI:
         return {k: v for k, v in self.pipelines.items() if v["is_online"]}
 
     def get_status(
-        self, pipeline_ids: list[str] | None = None, *, show_offline: bool = False
+        self, pipeline_ids: str | list[str] | None = None, *, show_offline: bool = False
     ) -> dict[str, dict]:
         """Get the status of the cycling process for all or selected pipelines.
 
@@ -414,7 +419,7 @@ def get_pipelines(*, show_offline: bool = False) -> dict[str, dict]:
 
 
 def get_status(
-    pipeline_ids: list[str] | None = None, *, show_offline: bool = False
+    pipeline_ids: str | list[str] | None = None, *, show_offline: bool = False
 ) -> dict[str, dict]:
     """Get the status of the cycling process for all or selected pipelines.
 
