@@ -1,5 +1,7 @@
-# Tests for CLI commands in aurora-biologic
-# Most require Biologic hardware to run, only help command is tested here
+"""Tests for CLI commands in aurora-biologic.
+
+Most require Biologic hardware to run, only help command is tested here.
+"""
 
 import subprocess
 
@@ -8,9 +10,9 @@ class TestCLI:
     """Test the CLI commands."""
 
     def test_biologic_help(self) -> None:
-        """Test CLI help output"""
+        """Test CLI help output."""
         result = subprocess.run(
-            "biologic --help",
+            ["biologic", "--help"],
             capture_output=True,
             text=True,
         )
