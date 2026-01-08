@@ -154,10 +154,10 @@ class BiologicAPI:
                 msg = (
                     f"Device position {i}: serial number and name not found, "
                     "it may be disconnected, uninitialized, or a virtual device. "
-                    f"Naming the device 'OFFLINE_{i}'."
+                    f"Naming the device 'OFFLINE-{i}'."
                 )
                 logger.warning(msg)
-                device_name = f"OFFLINE_{i}"
+                device_name = f"OFFLINE-{i}"
             if not device_name:
                 device_name = sn
                 logger.warning(
