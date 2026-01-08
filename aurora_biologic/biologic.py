@@ -24,50 +24,8 @@ logger = logging.getLogger(__name__)
 
 APP_NAME = "aurora-biologic"
 CONFIG_FILENAME = "config.json"
-config_dir = Path(user_config_dir(APP_NAME, appauthor=False))
-config_path = config_dir / CONFIG_FILENAME
-if not config_path.exists():
-    config_dir.mkdir(parents=True, exist_ok=True)
-    default_config = {
-        "serial_to_name": {
-            12345: "MPG2-1",
-            12346: "MPG2-2",
-        },
-        "eclab_path": "C:/Program Files (x86)/EC-Lab/EClab.exe",
-    }
-    with config_path.open("w") as f:
-        json.dump(default_config, f, indent=4)
-    msg = (
-        "IMPORTANT: Config file created at %s. "
-        "You must put serial number: device name pairs in the file, "
-        "and ensure the EC-lab executable path is correct."
-    )
-    logger.critical(msg, config_dir)
-
-with config_path.open("r") as f:
-    CONFIG = json.load(f)
-serial_to_name = CONFIG.get("serial_to_name", {})
-serial_to_name = {int(k): v for k, v in serial_to_name.items()}
-if any(re.match(r"^OFFLINE-\d+$", v) for v in serial_to_name.values()):
-    msg = (
-        "Device name 'OFFLINE-{number}' is reserved for offline devices. "
-        "Please remove this from your config."
-    )
-    raise ValueError(msg)
-
-
-def open_eclab() -> None:
-    """Open EC-lab if it is not already running."""
-    if not any("EClab" in proc.info["name"] for proc in psutil.process_iter(["name"])):
-        if eclab_path := CONFIG.get("eclab_path"):
-            subprocess.Popen([eclab_path])
-            sleep(2)  # To allow the program to initialize
-        else:
-            msg = (
-                "EC-lab is not running. "
-                f"Either open EC-lab or add 'eclab_path' key to config at '{config_path}'"
-            )
-            raise ValueError(msg)
+CONFIG_DIR = Path(user_config_dir(APP_NAME, appauthor=False))
+CONFIG_PATH = CONFIG_DIR / CONFIG_FILENAME
 
 
 def _human_readable_status(status: tuple) -> dict:
@@ -107,21 +65,11 @@ class BiologicAPI:
     ### Initialization and context management ###
 
     def __init__(self) -> None:
-        """Initialize the API with the host and port."""
-        open_eclab()
-        try:
-            self.eclab = CreateObject("EClabCOM.EClabExe")
-        except OSError as e:
-            msg = (
-                "Failed to connect to EC-Lab. "
-                "Make sure you have EC-lab registered with OLE-COM. "
-                "cd to the directory and use ECLab /regserver"
-            )
-            raise RuntimeError(msg) from e
-        sleep(0.001)
-        self.eclab.EnableMessagesWindows(0)
-        sleep(0.001)
-        self.pipelines: dict[str, dict] = self._get_all_pipelines()
+        """Load settings, open EC-lab, create COM object, find pipelines."""
+        self.CONFIG = self._load_config()
+        self._open_eclab()
+        self.eclab = self._connect_to_eclab()
+        self.pipelines = self._get_all_pipelines()
 
     def __enter__(self) -> "BiologicAPI":
         """Do nothing when entering context."""
@@ -137,6 +85,66 @@ class BiologicAPI:
 
     def __del__(self) -> None:
         """Do nothing when deleted."""
+
+    def _load_config(self) -> dict:
+        """Load configuration."""
+        if not CONFIG_PATH.exists():
+            CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+            default_config = {
+                "serial_to_name": {
+                    12345: "MPG2-1",
+                    12346: "MPG2-2",
+                },
+                "eclab_path": "C:/Program Files (x86)/EC-Lab/EClab.exe",
+            }
+            with CONFIG_PATH.open("w") as f:
+                json.dump(default_config, f, indent=4)
+            msg = (
+                "IMPORTANT: Config file created at %s. "
+                "You must put serial number: device name pairs in the file, "
+                "and ensure the EC-lab executable path is correct."
+            )
+            logger.critical(msg, CONFIG_DIR)
+
+        with CONFIG_PATH.open("r") as f:
+            CONFIG = json.load(f)
+        CONFIG["serial_to_name"] = {int(k): v for k, v in CONFIG["serial_to_name"].items()}
+        if any(re.match(r"^OFFLINE-\d+$", v) for v in CONFIG["serial_to_name"].values()):
+            msg = (
+                "Device name 'OFFLINE-{number}' is reserved for offline devices. "
+                "Please remove this from your config."
+            )
+            raise ValueError(msg)
+        return CONFIG
+
+    def _open_eclab(self) -> None:
+        """Open EC-lab if it is not already running."""
+        if not any("EClab" in proc.info["name"] for proc in psutil.process_iter(["name"])):
+            if eclab_path := self.CONFIG.get("eclab_path"):
+                subprocess.Popen([eclab_path])
+                sleep(2)  # To allow the program to initialize
+            else:
+                msg = (
+                    "EC-lab is not running. "
+                    f"Either open EC-lab or add 'eclab_path' key to config at '{CONFIG_PATH}'"
+                )
+                raise ValueError(msg)
+
+    def _connect_to_eclab(self):  # noqa: ANN202, com object is dynamic wrapper
+        """Return COM object connected to open EC-lab instance."""
+        try:
+            eclab = CreateObject("EClabCOM.EClabExe")
+        except OSError as e:
+            msg = (
+                "Failed to connect to EC-Lab. "
+                "Make sure you have EC-lab registered with OLE-COM. "
+                "cd to the directory and use ECLab /regserver"
+            )
+            raise RuntimeError(msg) from e
+        sleep(0.001)
+        eclab.EnableMessagesWindows(0)
+        sleep(0.001)
+        return eclab
 
     ### Private methods to get pipelines and pipeline details ###
 
@@ -156,7 +164,7 @@ class BiologicAPI:
             is_online = bool(sn)
 
             if is_online:
-                device_name = serial_to_name.get(sn)
+                device_name = self.CONFIG.get("serial_to_name", {}).get(sn)
             else:  # Device found but not connected
                 msg = (
                     f"Device position {i}: serial number and name not found, "
