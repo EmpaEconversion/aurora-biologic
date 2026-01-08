@@ -7,6 +7,7 @@ potentiostats.
 import functools
 import json
 import logging
+import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -47,6 +48,12 @@ with config_path.open("r") as f:
     CONFIG = json.load(f)
 serial_to_name = CONFIG.get("serial_to_name", {})
 serial_to_name = {int(k): v for k, v in serial_to_name.items()}
+if any(re.match(r"^OFFLINE-\d+$", v) for v in serial_to_name.values()):
+    msg = (
+        "Device name 'OFFLINE-{number}' is reserved for offline devices. "
+        "Please remove this from your config."
+    )
+    raise ValueError(msg)
 
 
 def open_eclab() -> None:
@@ -145,14 +152,19 @@ class BiologicAPI:
             sn, channel_sns, success = self.eclab.GetDeviceSN(i)
             if not success:  # Index out of range - stop searching
                 break
-            if not sn:  # Device found but not connected
+
+            is_online = bool(sn)
+
+            if is_online:
+                device_name = serial_to_name.get(sn)
+            else:  # Device found but not connected
                 msg = (
-                    "Found a device with serial number 0. "
-                    "The device or EC-lab may not be properly initialized."
+                    f"Device position {i}: serial number and name not found, "
+                    "it may be disconnected, uninitialized, or a virtual device. "
+                    f"Naming the device 'OFFLINE-{i}'."
                 )
                 logger.warning(msg)
-                continue
-            device_name = serial_to_name.get(sn)
+                device_name = f"OFFLINE-{i}"
             if not device_name:
                 device_name = sn
                 logger.warning(
@@ -168,6 +180,7 @@ class BiologicAPI:
                     "device_serial_number": int(sn),
                     "channel_index": j,
                     "channel_serial_number": int(channel_sn),
+                    "is_online": is_online,
                 }
         return devices
 
@@ -185,6 +198,12 @@ class BiologicAPI:
         """Get device and channel indices for a pipeline."""
         pipeline_dict = self._get_pipeline(pipeline)
         return pipeline_dict["device_index"], pipeline_dict["channel_index"]
+
+    def _assert_online(self, pipeline: str) -> None:
+        """Raise error if pipeline belongs to offline device."""
+        if not self._get_pipeline(pipeline).get("is_online"):
+            msg = "Device is offline"
+            raise ValueError(msg)
 
     ### EC-lab OLE-COM methods with retrying on failure ###
 
@@ -234,19 +253,36 @@ class BiologicAPI:
 
     ### Public API methods ###
 
-    def get_status(self, pipeline_ids: list[str] | None = None) -> dict[str, dict]:
+    def get_pipelines(self, *, show_offline: bool = False) -> dict[str, dict]:
+        """Show pipeline details: index in EC-Lab, serial number, connection status etc.
+
+        Args:
+            show_offline (bool, default: False): Also show offline devices.
+
+        """
+        if show_offline:
+            return self.pipelines
+        return {k: v for k, v in self.pipelines.items() if v["is_online"]}
+
+    def get_status(
+        self, pipeline_ids: list[str] | None = None, *, show_offline: bool = False
+    ) -> dict[str, dict]:
         """Get the status of the cycling process for all or selected pipelines.
 
         Args:
             pipeline_ids (list[str] | None): List of pipeline IDs to get status from.
                 If None, will use the full channel map.
+            show_offline (bool, default: False): Also show offline devices.
 
         Returns:
             dict: A dictionary with pipeline IDs as keys and their status as values.
 
         """
         if not pipeline_ids:
-            pipeline_dicts = self.pipelines
+            if show_offline:
+                pipeline_dicts = self.pipelines
+            else:
+                pipeline_dicts = {k: v for k, v in self.pipelines.items() if v["is_online"]}
         else:
             if isinstance(pipeline_ids, str):
                 pipeline_ids = [pipeline_ids]
@@ -278,6 +314,7 @@ class BiologicAPI:
 
     def run_channel(self, pipeline: str, output_path: str | Path) -> None:
         """Run the protocol on the given pipeline."""
+        self._assert_online(pipeline)
         output_path = Path(output_path).resolve()
         if output_path.is_dir():
             msg = "Must provide a full file path, not directory."
@@ -294,6 +331,7 @@ class BiologicAPI:
 
     def stop(self, pipeline: str) -> None:
         """Stop the cycling process on a pipeline."""
+        self._assert_online(pipeline)
         dev_idx, channel_idx = self._get_pipeline_indices(pipeline)
         self._olecom_stop_channel(dev_idx, channel_idx)
 
@@ -303,13 +341,27 @@ class BiologicAPI:
         self._olecom_select_channel(dev_idx, channel_idx)
         return self._olecom_get_experiment_infos(dev_idx, channel_idx)
 
-    def get_job_id(self, pipeline_ids: str | list[str] | None) -> dict[str, str | None]:
+    def get_job_id(
+        self, pipeline_ids: str | list[str] | None, *, show_offline: bool = False
+    ) -> dict[str, str | None]:
         """Get job IDs of selected channels.
 
         The job ID is the folder name if the job is running, None if it is finished.
+
+        Args:
+            pipeline_ids (list[str] | None): List of pipeline IDs to get status from.
+                If None, will use the full channel map.
+            show_offline (bool, default: False): Also show offline devices.
+
+        Returns:
+            dict: A dictionary with pipeline IDs as keys and Job IDs as values.
+
         """
         if not pipeline_ids:
-            pipeline_ids = list(self.pipelines.keys())
+            if show_offline:
+                pipeline_ids = list(self.pipelines.keys())
+            else:
+                pipeline_ids = [k for k, v in self.pipelines.items() if v["is_online"]]
         else:
             if isinstance(pipeline_ids, str):
                 pipeline_ids = [pipeline_ids]
