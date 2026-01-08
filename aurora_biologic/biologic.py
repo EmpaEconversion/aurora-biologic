@@ -7,6 +7,7 @@ potentiostats.
 import functools
 import json
 import logging
+import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -47,6 +48,12 @@ with config_path.open("r") as f:
     CONFIG = json.load(f)
 serial_to_name = CONFIG.get("serial_to_name", {})
 serial_to_name = {int(k): v for k, v in serial_to_name.items()}
+if any(re.match(r"^OFFLINE-\d+$", v) for v in serial_to_name.values()):
+    msg = (
+        "Device name 'OFFLINE-{number}' is reserved for offline devices. "
+        "Please remove this from your config."
+    )
+    raise ValueError(msg)
 
 
 def open_eclab() -> None:
