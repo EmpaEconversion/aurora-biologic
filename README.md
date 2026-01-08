@@ -75,8 +75,6 @@ Rename your devices according to their serial number, and make sure the EC-lab e
 
 ## CLI usage
 
-Make sure EC-lab is running.
-
 You can check what devices and channels were found with
 ```bash
 biologic pipelines
@@ -95,19 +93,18 @@ biologic status MPG2-1-7
 
 ## API usage
 
-Commands can also be run using Python.
+Commands can also be run using Python, e.g.:
 
-Make sure EC-lab is running.
-
-Then commands can be run using the BiologicAPI object
 ```python
-from aurora_biologic import BiologicAPI
-with BiologicAPI() as bio:
-    bio.start(
-        "my_pipeline_id",
-        "path/to/my_experiment.mps",
-        "path/to/an/output.mpr",
-    )
+import aurora_biologic as bio
+
+print(bio.get_status())
+
+bio.start(
+    "my_pipeline_id",
+    "path/to/my_experiment.mps",
+    "path/to/an/output.mpr",
+)
 ```
 
 ## Using commands over SSH
