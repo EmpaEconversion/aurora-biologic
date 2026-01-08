@@ -1,14 +1,19 @@
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/0caae30d-92cf-4964-b95d-c84d59041a78#gh-light-mode-only" width="500" align="center" alt="aurora-biologic logo">
-  <img src="https://github.com/user-attachments/assets/7a32e5f4-f2a7-4ef4-83b1-50e9e10ff4fb#gh-dark-mode-only" width="500" align="center" alt="aurora-biologic logo">
-</p>
+<h1 align="center">
+  <img src="https://github.com/user-attachments/assets/9442583c-e3cd-49dd-b396-d169ea0fdda4" width="500" align="center" alt="aurora-biologic logo">
+</h1>
 
 </br>
 
-## Overview
-`aurora-biologic` provides a standalone Python API and command line interface (CLI) to control Biologic cyclers.
+[![PyPI version](https://img.shields.io/pypi/v/aurora-biologic.svg)](https://pypi.org/project/aurora-biologic/)
+[![License](https://img.shields.io/github/license/empaeconversion/aurora-biologic?color=blue)](https://github.com/empaeconversion/aurora-biologic/blob/main/LICENSE)
+[![Python Versions](https://img.shields.io/pypi/pyversions/aurora-biologic.svg)](https://pypi.org/project/aurora-biologic/)
+[![Checks](https://img.shields.io/github/actions/workflow/status/empaeconversion/aurora-biologic/test.yml)](https://github.com/EmpaEconversion/aurora-biologic/actions/workflows/test.yml)
+[![Coverage](https://img.shields.io/codecov/c/github/empaeconversion/aurora-biologic)](https://app.codecov.io/gh/EmpaEconversion/aurora-biologic)
 
-It is designed and tested on MPG2 cyclers using EC-lab 11.52 and 11.61.
+
+A standalone Python API and command line interface (CLI) to control Biologic battery cyclers.
+
+Designed and tested on MPG2 cyclers using EC-lab 11.52 and 11.61.
 
 ## Features
 - CLI and Python API
