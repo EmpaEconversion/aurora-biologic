@@ -148,7 +148,7 @@ class BiologicAPI:
         """Return COM object connected to open EC-lab instance."""
         try:
             if os.getenv("AURORA_BIOLOGIC_MOCK_OLECOM"):
-                from tests.test_biologic import FakeECLab  # noqa: PLC0415
+                from aurora_biologic.mocks import FakeECLab
 
                 eclab = FakeECLab()
             else:
