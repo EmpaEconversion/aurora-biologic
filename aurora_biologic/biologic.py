@@ -7,12 +7,14 @@ potentiostats.
 import functools
 import json
 import logging
+import os
 import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
 from time import sleep
 from types import TracebackType
+from typing import Any
 
 import psutil
 from comtypes.client import CreateObject
@@ -21,11 +23,6 @@ from platformdirs import user_config_dir
 from aurora_biologic.dicts import status_codes, status_nested_codes
 
 logger = logging.getLogger(__name__)
-
-APP_NAME = "aurora-biologic"
-CONFIG_FILENAME = "config.json"
-CONFIG_DIR = Path(user_config_dir(APP_NAME, appauthor=False))
-CONFIG_PATH = CONFIG_DIR / CONFIG_FILENAME
 
 
 def _human_readable_status(status: tuple) -> dict:
@@ -62,6 +59,10 @@ def retry_with_backoff(delays_s: tuple[float, ...] = (0.01, 0.05, 0.25)) -> Call
 class BiologicAPI:
     """Class to interact with Biologic EC-lab potentiostats."""
 
+    CONFIG: dict
+    eclab: Any
+    pipelines: dict[str, dict]
+
     ### Initialization and context management ###
 
     def __init__(self) -> None:
@@ -88,6 +89,16 @@ class BiologicAPI:
 
     def _load_config(self) -> dict:
         """Load configuration."""
+        CONFIG_FILENAME = os.getenv(
+            "AURORA_BIOLOGIC_CONFIG_FILENAME",
+            "config.json",
+        )
+        CONFIG_DIR = Path(
+            os.getenv(
+                "AURORA_BIOLOGIC_CONFIG_DIR", user_config_dir("aurora-biologic", appauthor=False)
+            )
+        )
+        CONFIG_PATH = CONFIG_DIR / CONFIG_FILENAME
         if not CONFIG_PATH.exists():
             CONFIG_DIR.mkdir(parents=True, exist_ok=True)
             default_config = {
@@ -109,6 +120,7 @@ class BiologicAPI:
         with CONFIG_PATH.open("r") as f:
             CONFIG = json.load(f)
         CONFIG["serial_to_name"] = {int(k): v for k, v in CONFIG["serial_to_name"].items()}
+        CONFIG["config_path"] = CONFIG_PATH
         if any(re.match(r"^OFFLINE-\d+$", v) for v in CONFIG["serial_to_name"].values()):
             msg = (
                 "Device name 'OFFLINE-{number}' is reserved for offline devices. "
@@ -121,19 +133,26 @@ class BiologicAPI:
         """Open EC-lab if it is not already running."""
         if not any("EClab" in proc.info["name"] for proc in psutil.process_iter(["name"])):
             if eclab_path := self.CONFIG.get("eclab_path"):
-                subprocess.Popen([eclab_path])
+                if not os.getenv("AURORA_BIOLOGIC_MOCK_OLECOM"):
+                    subprocess.Popen([eclab_path])
                 sleep(2)  # To allow the program to initialize
             else:
                 msg = (
                     "EC-lab is not running. "
-                    f"Either open EC-lab or add 'eclab_path' key to config at '{CONFIG_PATH}'"
+                    "Either open EC-lab or add 'eclab_path' key to config at "
+                    f"{self.CONFIG.get('config_path')}"
                 )
                 raise ValueError(msg)
 
-    def _connect_to_eclab(self):  # noqa: ANN202, com object is dynamic wrapper
+    def _connect_to_eclab(self) -> Any:  # noqa: ANN401, com object is dynamic wrapper
         """Return COM object connected to open EC-lab instance."""
         try:
-            eclab = CreateObject("EClabCOM.EClabExe")
+            if os.getenv("AURORA_BIOLOGIC_MOCK_OLECOM"):
+                from aurora_biologic.mocks import FakeECLab
+
+                eclab = FakeECLab()
+            else:
+                eclab = CreateObject("EClabCOM.EClabExe")
         except OSError as e:
             msg = (
                 "Failed to connect to EC-Lab. "
@@ -273,7 +292,7 @@ class BiologicAPI:
         return {k: v for k, v in self.pipelines.items() if v["is_online"]}
 
     def get_status(
-        self, pipeline_ids: list[str] | None = None, *, show_offline: bool = False
+        self, pipeline_ids: str | list[str] | None = None, *, show_offline: bool = False
     ) -> dict[str, dict]:
         """Get the status of the cycling process for all or selected pipelines.
 
@@ -414,7 +433,7 @@ def get_pipelines(*, show_offline: bool = False) -> dict[str, dict]:
 
 
 def get_status(
-    pipeline_ids: list[str] | None = None, *, show_offline: bool = False
+    pipeline_ids: str | list[str] | None = None, *, show_offline: bool = False
 ) -> dict[str, dict]:
     """Get the status of the cycling process for all or selected pipelines.
 

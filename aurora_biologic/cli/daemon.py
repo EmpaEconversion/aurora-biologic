@@ -100,19 +100,27 @@ def command_worker() -> None:
             command_queue.task_done()
 
 
-def start_daemon() -> None:
+def start_daemon(
+    host: str = HOST,
+    port: int = PORT,
+    stop_event: threading.Event | None = None,
+) -> None:
     """Start the Biologic daemon to listen for commands."""
     logger.critical(
         "Starting listener on %s:%s. Closing this terminal will kill the daemon.",
-        HOST,
-        PORT,
+        host,
+        port,
     )
     threading.Thread(target=command_worker, daemon=True).start()
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
         s.listen()
-        while True:
-            conn, addr = s.accept()
+        s.settimeout(0.5)
+        while stop_event is None or not stop_event.is_set():
+            try:
+                conn, addr = s.accept()
+            except TimeoutError:
+                continue
             threading.Thread(target=receive_command, args=(conn, addr), daemon=True).start()
 
 
