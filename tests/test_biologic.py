@@ -1,48 +1,10 @@
 """Tests for biologic.py."""
 
-import json
-import os
-from collections.abc import Generator
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
 import aurora_biologic.biologic as bio
-
-
-@pytest.fixture(autouse=True)
-def no_sleep() -> Generator:
-    """Make all sleeps instant in this test module."""
-    with patch("time.sleep", return_value=None):
-        yield
-
-
-@pytest.fixture(scope="session")
-def test_config_dir(tmp_path_factory: pytest.TempPathFactory, autouse=True):
-    """Create a temp directory that persists for all tests in this module."""
-    temp_dir = tmp_path_factory.mktemp("config")
-
-    # Set up config
-    config_file = temp_dir / "config.json"
-    default_config = {
-        "serial_to_name": {123: "MPG2-1", 456: "hello?"},
-        "eclab_path": "this/path/doesnt/exist/EClab.exe",
-    }
-    config_file.write_text(json.dumps(default_config))
-
-    os.environ["AURORA_BIOLOGIC_CONFIG_DIR"] = str(temp_dir)
-    os.environ["AURORA_BIOLOGIC_CONFIG_FILENAME"] = "config.json"
-    os.environ["AURORA_BIOLOGIC_MOCK_OLECOM"] = "1"
-
-    return temp_dir
-
-
-@pytest.fixture(scope="session")
-def mock_bio(test_config_dir: Path, autouse=True) -> bio.BiologicAPI:
-    """Create BiologicAPI instance with fake EC-lab."""
-    os.environ["AURORA_BIOLOGIC_MOCK_OLECOM"] = "1"
-    return bio._get_api()
 
 
 class FakeECLab:
