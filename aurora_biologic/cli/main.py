@@ -8,7 +8,7 @@ from typing import Annotated
 
 import typer
 
-from aurora_biologic import BiologicAPI
+import aurora_biologic.biologic as bio
 from aurora_biologic.cli.daemon import send_command, start_daemon
 
 logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
@@ -72,8 +72,7 @@ def pipelines(
             command += ["--show-offline"]
         typer.echo(send_command(command))
         return
-    with BiologicAPI() as bio:
-        typer.echo(json.dumps(bio.get_pipelines(show_offline=show_offline), indent=indent))
+    typer.echo(json.dumps(bio.get_pipelines(show_offline=show_offline), indent=indent))
 
 
 @app.command()
@@ -97,9 +96,8 @@ def status(
             command += [f"--indent={indent}"]
         typer.echo(send_command(command))
         return
-    with BiologicAPI() as bio:
-        status = bio.get_status(pipeline_ids=pipeline_ids, show_offline=show_offline)
-        typer.echo(json.dumps(status, indent=indent))
+    status = bio.get_status(pipeline_ids=pipeline_ids, show_offline=show_offline)
+    typer.echo(json.dumps(status, indent=indent))
 
 
 @app.command()
@@ -113,8 +111,7 @@ def load_settings(
         command = ["biologic", "load-settings", pipeline, str(settings_file)]
         typer.echo(send_command(command))
         return
-    with BiologicAPI() as bio:
-        bio.load_settings(pipeline, settings_file)
+    bio.load_settings(pipeline, settings_file)
 
 
 @app.command()
@@ -128,8 +125,7 @@ def run_channel(
         command = ["biologic", "run-channel", pipeline, str(output_path)]
         typer.echo(send_command(command))
         return
-    with BiologicAPI() as bio:
-        bio.run_channel(pipeline, output_path)
+    bio.run_channel(pipeline, output_path)
 
 
 @app.command()
@@ -144,8 +140,7 @@ def start(
         command = ["biologic", "start", pipeline, str(settings_file), str(output_path)]
         typer.echo(send_command(command))
         return
-    with BiologicAPI() as bio:
-        bio.start(pipeline, settings_file, output_path)
+    bio.start(pipeline, settings_file, output_path)
 
 
 @app.command()
@@ -158,8 +153,7 @@ def stop(
         command = ["biologic", "stop", pipeline]
         typer.echo(send_command(command))
         return
-    with BiologicAPI() as bio:
-        bio.stop(pipeline)
+    bio.stop(pipeline)
 
 
 @app.command()
@@ -185,10 +179,7 @@ def get_job_id(
             command += [f"--indent={indent}"]
         typer.echo(send_command(command))
         return
-    with BiologicAPI() as bio:
-        typer.echo(
-            json.dumps(bio.get_job_id(pipeline_ids, show_offline=show_offline), indent=indent)
-        )
+    typer.echo(json.dumps(bio.get_job_id(pipeline_ids, show_offline=show_offline), indent=indent))
 
 
 @app.command()
