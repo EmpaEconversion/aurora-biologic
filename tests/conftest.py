@@ -13,8 +13,8 @@ import aurora_biologic.biologic as bio
 
 @pytest.fixture(scope="session", autouse=True)
 def no_sleep() -> Generator:
-    """Make all sleeps instant in this test module."""
-    with patch("time.sleep", return_value=None):
+    """Make all sleeps instant in biologic.py."""
+    with patch("aurora_biologic.biologic.sleep", return_value=None):
         yield
 
 
