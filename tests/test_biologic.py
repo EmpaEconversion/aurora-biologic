@@ -1,6 +1,7 @@
 """Tests for biologic.py."""
 
 import json
+import os
 from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import patch
@@ -18,7 +19,7 @@ def no_sleep() -> Generator:
 
 
 @pytest.fixture(scope="session")
-def temp_config_dir(tmp_path_factory: pytest.TempPathFactory, autouse=True):
+def test_config_dir(tmp_path_factory: pytest.TempPathFactory, autouse=True):
     """Create a temp directory that persists for all tests in this module."""
     temp_dir = tmp_path_factory.mktemp("config")
 
@@ -30,19 +31,18 @@ def temp_config_dir(tmp_path_factory: pytest.TempPathFactory, autouse=True):
     }
     config_file.write_text(json.dumps(default_config))
 
-    # Point module to temp directory
-    bio.CONFIG_DIR = temp_dir
-    bio.CONFIG_PATH = config_file
+    os.environ["AURORA_BIOLOGIC_CONFIG_DIR"] = str(temp_dir)
+    os.environ["AURORA_BIOLOGIC_CONFIG_FILENAME"] = "config.json"
+    os.environ["AURORA_BIOLOGIC_MOCK_OLECOM"] = "1"
 
     return temp_dir
 
 
-@pytest.fixture(scope="module")
-def bio_instance(temp_config_dir: Path) -> bio.BiologicAPI:
+@pytest.fixture(scope="session")
+def mock_bio(test_config_dir: Path, autouse=True) -> bio.BiologicAPI:
     """Create BiologicAPI instance with fake EC-lab."""
-    bio._get_api(eclab_connection=FakeECLab())
-    assert isinstance(bio._instance, bio.BiologicAPI)
-    return bio._instance
+    os.environ["AURORA_BIOLOGIC_MOCK_OLECOM"] = "1"
+    return bio._get_api()
 
 
 class FakeECLab:
@@ -140,7 +140,7 @@ class FakeECLab:
         )
 
 
-def test_get_pipelines(bio_instance) -> None:
+def test_get_pipelines(mock_bio) -> None:
     """Test get_pipelines() function."""
     dev1 = {
         f"MPG2-1-{i}": {
@@ -180,7 +180,7 @@ def test_get_pipelines(bio_instance) -> None:
     assert bio.get_pipelines(show_offline=True) == {**dev1, **dev2, **dev3}
 
     # With context should behave the same
-    with bio.BiologicAPI(eclab_connection=FakeECLab()) as bapi:
+    with bio.BiologicAPI() as bapi:
         bapi.CONFIG = {
             "serial_to_name": {123: "MPG2-1"},
             "eclab_path": "this/path/doesnt/exist/EClab.exe",
@@ -189,7 +189,7 @@ def test_get_pipelines(bio_instance) -> None:
         assert bapi.get_pipelines() == {**dev1, **dev2}
 
 
-def test_get_status(bio_instance) -> None:
+def test_get_status(mock_bio) -> None:
     """Test the get_status() function."""
     expect = {
         "MPG2-1-1": {
@@ -246,7 +246,7 @@ def test_get_status(bio_instance) -> None:
     assert len(res) == 0
 
 
-def test_load_settings(bio_instance, tmpdir: Path) -> None:
+def test_load_settings(mock_bio, tmpdir: Path) -> None:
     """Test load_settings() function."""
     mps_path = tmpdir / "settings.mps"
     with pytest.raises(FileNotFoundError):
@@ -263,17 +263,17 @@ def test_load_settings(bio_instance, tmpdir: Path) -> None:
     bio.load_settings("OFFLINE-2-1", mps_path)
 
     # This channel shouldnt work
-    bio_instance.eclab.simulate_unselectable = True
+    mock_bio.eclab.simulate_unselectable = True
     with pytest.raises(RuntimeError):
         bio.load_settings("999-1", mps_path)
-    bio_instance.eclab.simulate_unselectable = False
-    bio_instance.eclab.simulate_bad_channel = True
+    mock_bio.eclab.simulate_unselectable = False
+    mock_bio.eclab.simulate_bad_channel = True
     with pytest.raises(RuntimeError):
         bio.load_settings("999-1", mps_path)
-    bio_instance.eclab.simulate_bad_channel = False
+    mock_bio.eclab.simulate_bad_channel = False
 
 
-def test_run_channel(bio_instance, tmpdir: Path) -> None:
+def test_run_channel(mock_bio, tmpdir: Path) -> None:
     """Test run_channel() function."""
     with pytest.raises(ValueError) as excinfo:
         bio.run_channel("MPG2-1-1", tmpdir)
@@ -285,13 +285,13 @@ def test_run_channel(bio_instance, tmpdir: Path) -> None:
         bio.run_channel("OFFLINE-2-1", output_path)
     assert "Device is offline" in str(excinfo.value)
 
-    bio_instance.eclab.simulate_bad_channel = True
+    mock_bio.eclab.simulate_bad_channel = True
     with pytest.raises(RuntimeError):
         bio.run_channel("MPG2-1-1", output_path)
-    bio_instance.eclab.simulate_bad_channel = False
+    mock_bio.eclab.simulate_bad_channel = False
 
 
-def test_start(bio_instance, tmpdir: Path) -> None:
+def test_start(mock_bio, tmpdir: Path) -> None:
     """Test start() function."""
     mps_path = tmpdir / "settings.mps"
     output_path = tmpdir / "some-output.mps"
@@ -302,17 +302,17 @@ def test_start(bio_instance, tmpdir: Path) -> None:
     bio.start("MPG2-1-1", mps_path, output_path)
 
 
-def test_stop(bio_instance) -> None:
+def test_stop(mock_bio) -> None:
     """Test stop() function."""
     bio.stop("MPG2-1-1")
 
-    bio_instance.eclab.simulate_bad_channel = True
+    mock_bio.eclab.simulate_bad_channel = True
     with pytest.raises(RuntimeError):
         bio.stop("MPG2-1-1")
-    bio_instance.eclab.simulate_bad_channel = False
+    mock_bio.eclab.simulate_bad_channel = False
 
 
-def test_get_experiment_info(bio_instance) -> None:
+def test_get_experiment_info(mock_bio) -> None:
     """Test get_experiment_info() function."""
     res = bio.get_experiment_info("MPG2-1-1")
     expect = (
@@ -323,13 +323,13 @@ def test_get_experiment_info(bio_instance) -> None:
     )
     assert res == expect
 
-    bio_instance.eclab.simulate_bad_channel = True
+    mock_bio.eclab.simulate_bad_channel = True
     with pytest.raises(RuntimeError):
         res = bio.get_experiment_info("MPG2-1-1")
-    bio_instance.eclab.simulate_bad_channel = False
+    mock_bio.eclab.simulate_bad_channel = False
 
 
-def test_get_job_id(bio_instance) -> None:
+def test_get_job_id(mock_bio) -> None:
     """Test get_job_id() function."""
     res = bio.get_job_id("MPG2-1-1")
     assert res == {"MPG2-1-1": "thisisthejob"}

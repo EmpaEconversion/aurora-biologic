@@ -7,6 +7,7 @@ potentiostats.
 import functools
 import json
 import logging
+import os
 import re
 import subprocess
 from collections.abc import Callable
@@ -22,11 +23,6 @@ from platformdirs import user_config_dir
 from aurora_biologic.dicts import status_codes, status_nested_codes
 
 logger = logging.getLogger(__name__)
-
-APP_NAME = "aurora-biologic"
-CONFIG_FILENAME = "config.json"
-CONFIG_DIR = Path(user_config_dir(APP_NAME, appauthor=False))
-CONFIG_PATH = CONFIG_DIR / CONFIG_FILENAME
 
 
 def _human_readable_status(status: tuple) -> dict:
@@ -69,14 +65,11 @@ class BiologicAPI:
 
     ### Initialization and context management ###
 
-    def __init__(self, eclab_connection=None) -> None:  # noqa: ANN001
+    def __init__(self) -> None:
         """Load settings, open EC-lab, create COM object, find pipelines."""
         self.CONFIG = self._load_config()
-        if eclab_connection is None:
-            self._open_eclab()
-            self.eclab = self._connect_to_eclab()
-        else:  # For mocking in tests
-            self.eclab = eclab_connection
+        self._open_eclab()
+        self.eclab = self._connect_to_eclab()
         self.pipelines = self._get_all_pipelines()
 
     def __enter__(self) -> "BiologicAPI":
@@ -96,6 +89,16 @@ class BiologicAPI:
 
     def _load_config(self) -> dict:
         """Load configuration."""
+        CONFIG_FILENAME = os.getenv(
+            "AURORA_BIOLOGIC_CONFIG_FILENAME",
+            "config.json",
+        )
+        CONFIG_DIR = Path(
+            os.getenv(
+                "AURORA_BIOLOGIC_CONFIG_DIR", user_config_dir("aurora-biologic", appauthor=False)
+            )
+        )
+        CONFIG_PATH = CONFIG_DIR / CONFIG_FILENAME
         if not CONFIG_PATH.exists():
             CONFIG_DIR.mkdir(parents=True, exist_ok=True)
             default_config = {
@@ -117,6 +120,7 @@ class BiologicAPI:
         with CONFIG_PATH.open("r") as f:
             CONFIG = json.load(f)
         CONFIG["serial_to_name"] = {int(k): v for k, v in CONFIG["serial_to_name"].items()}
+        CONFIG["config_path"] = CONFIG_PATH
         if any(re.match(r"^OFFLINE-\d+$", v) for v in CONFIG["serial_to_name"].values()):
             msg = (
                 "Device name 'OFFLINE-{number}' is reserved for offline devices. "
@@ -129,19 +133,26 @@ class BiologicAPI:
         """Open EC-lab if it is not already running."""
         if not any("EClab" in proc.info["name"] for proc in psutil.process_iter(["name"])):
             if eclab_path := self.CONFIG.get("eclab_path"):
-                subprocess.Popen([eclab_path])
+                if not os.getenv("AURORA_BIOLOGIC_MOCK_OLECOM"):
+                    subprocess.Popen([eclab_path])
                 sleep(2)  # To allow the program to initialize
             else:
                 msg = (
                     "EC-lab is not running. "
-                    f"Either open EC-lab or add 'eclab_path' key to config at '{CONFIG_PATH}'"
+                    "Either open EC-lab or add 'eclab_path' key to config at "
+                    f"{self.CONFIG.get('config_path')}"
                 )
                 raise ValueError(msg)
 
     def _connect_to_eclab(self) -> Any:  # noqa: ANN401, com object is dynamic wrapper
         """Return COM object connected to open EC-lab instance."""
         try:
-            eclab = CreateObject("EClabCOM.EClabExe")
+            if os.getenv("AURORA_BIOLOGIC_MOCK_OLECOM"):
+                from tests.test_biologic import FakeECLab  # noqa: PLC0415
+
+                eclab = FakeECLab()
+            else:
+                eclab = CreateObject("EClabCOM.EClabExe")
         except OSError as e:
             msg = (
                 "Failed to connect to EC-Lab. "
@@ -404,10 +415,10 @@ class BiologicAPI:
 _instance: BiologicAPI | None = None
 
 
-def _get_api(eclab_connection=None) -> BiologicAPI:  # noqa: ANN001
+def _get_api() -> BiologicAPI:
     """Only allow one 'global' API."""
     global _instance  # noqa: PLW0603
-    _instance = _instance or BiologicAPI(eclab_connection)
+    _instance = _instance or BiologicAPI()
     return _instance
 
 
