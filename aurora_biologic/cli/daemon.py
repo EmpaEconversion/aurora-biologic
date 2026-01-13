@@ -122,7 +122,3 @@ def start_daemon(
             except TimeoutError:
                 continue
             threading.Thread(target=receive_command, args=(conn, addr), daemon=True).start()
-
-
-if __name__ == "__main__":
-    start_daemon()

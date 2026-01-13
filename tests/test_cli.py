@@ -66,8 +66,8 @@ def wait_for_port(timeout: float = 5) -> None:
     raise RuntimeError(msg)
 
 
-@pytest.fixture
-def mock_daemon(mock_bio, scope="session") -> Generator:
+@pytest.fixture(scope="module")
+def mock_daemon(mock_bio) -> Generator:
     """Create a daemon in a separate thread."""
     stop = threading.Event()
     thread = threading.Thread(
@@ -79,7 +79,6 @@ def mock_daemon(mock_bio, scope="session") -> Generator:
     wait_for_port(PORT)
     yield
     stop.set()
-    thread.join(timeout=2)
 
 
 def test_help(mock_bio) -> None:
