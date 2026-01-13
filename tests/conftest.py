@@ -55,7 +55,7 @@ def test_config_dir(tmp_path_factory: pytest.TempPathFactory) -> Generator[Path]
     del os.environ["AURORA_BIOLOGIC_MOCK_OLECOM"]
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def mock_bio(test_config_dir: Path) -> Generator[bio.BiologicAPI]:
     """Create BiologicAPI instance with fake EC-lab."""
     api = bio._get_api()
