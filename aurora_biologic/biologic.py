@@ -33,6 +33,12 @@ def _human_readable_status(status: tuple) -> dict:
     }
 
 
+def _sleep(time_s: float) -> None:
+    """Sleep function, but skip if in tests."""
+    if not os.getenv("AURORA_BIOLOGIC_MOCK_OLECOM"):
+        sleep(time_s)
+
+
 def retry_with_backoff(delays_s: tuple[float, ...] = (0.01, 0.05, 0.25)) -> Callable:
     """Retry a function with exponential backoff.
 
@@ -48,7 +54,7 @@ def retry_with_backoff(delays_s: tuple[float, ...] = (0.01, 0.05, 0.25)) -> Call
                 try:
                     return func(*args, **kwargs)
                 except RuntimeError:  # noqa: PERF203
-                    sleep(delay)
+                    _sleep(delay)
             return func(*args, **kwargs)  # Final attempt, allow to raise error
 
         return wrapper
@@ -135,7 +141,7 @@ class BiologicAPI:
             if eclab_path := self.CONFIG.get("eclab_path"):
                 if not os.getenv("AURORA_BIOLOGIC_MOCK_OLECOM"):
                     subprocess.Popen([eclab_path])
-                sleep(2)  # To allow the program to initialize
+                _sleep(2)  # To allow the program to initialize
             else:
                 msg = (
                     "EC-lab is not running. "
@@ -160,9 +166,9 @@ class BiologicAPI:
                 "cd to the directory and use ECLab /regserver"
             )
             raise RuntimeError(msg) from e
-        sleep(0.001)
+        _sleep(0.001)
         eclab.EnableMessagesWindows(0)
-        sleep(0.001)
+        _sleep(0.001)
         return eclab
 
     ### Private methods to get pipelines and pipeline details ###

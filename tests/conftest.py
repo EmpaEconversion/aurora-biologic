@@ -5,7 +5,6 @@ import os
 import sys
 from collections.abc import Generator
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -23,13 +22,6 @@ if original_pythonpath:
     os.environ["PYTHONPATH"] = f"{tests_dir}{os.pathsep}{original_pythonpath}"
 else:
     os.environ["PYTHONPATH"] = tests_dir
-
-
-@pytest.fixture(scope="session", autouse=True)
-def no_sleep() -> Generator:
-    """Make all sleeps instant in biologic.py."""
-    with patch("aurora_biologic.biologic.sleep", return_value=None):
-        yield
 
 
 @pytest.fixture(scope="session")
