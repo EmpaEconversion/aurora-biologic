@@ -59,7 +59,7 @@ biologic --help
 
 The first time you run the command line, a config file is generated at:
 
-`C:\Users\<user>\AppData\Local\aurora-biologic\aurora-biologic\config.json`
+`C:\Users\<user>\AppData\Local\aurora-biologic\config.json`
 
 which will look like:
 ```json
