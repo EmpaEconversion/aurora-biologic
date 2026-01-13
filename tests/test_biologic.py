@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+from mocks import FakeECLab
 
 import aurora_biologic.biologic as bio
 
@@ -209,3 +210,45 @@ def test_get_job_id(mock_bio) -> None:
 
     res = bio.get_job_id(pipeline_ids=None, show_offline=True)
     assert len(res) == 18
+
+
+def test_empty_config(empty_config: Path, caplog) -> None:
+    """No config - it should be generated."""
+    bio._instance = None
+    assert not empty_config.exists()
+    assert bio._get_api().CONFIG["config_path"] == empty_config
+    assert bio._get_api().CONFIG["serial_to_name"] == {12345: "MPG2-1", 12346: "MPG2-2"}
+    assert empty_config.exists()
+    assert "IMPORTANT" in caplog.text
+
+
+def test_bad_config(bad_config: Path) -> None:
+    """Bad configs are rejected."""
+    assert bad_config.exists()
+    bio._instance = None
+    with pytest.raises(ValueError) as excinfo:
+        bio._get_api()
+    assert "OFFLINE" in str(excinfo.value)
+
+
+def test_no_eclab(no_eclab_config: Path) -> None:
+    """No EC-lab - user told to open or add path to config."""
+    assert no_eclab_config.exists()
+    bio._instance = None
+    with pytest.raises(ValueError) as excinfo:
+        bio._get_api()
+    assert "open EC-lab or add 'eclab_path' key to config" in str(excinfo.value)
+
+
+def test_bad_eclab(monkeypatch) -> None:
+    """EC-lab failed to open - user told to check OLE-COM."""
+
+    def broken_init(self) -> None:
+        """Something is wrong with OLE-COM."""
+        raise OSError
+
+    monkeypatch.setattr(FakeECLab, "__init__", broken_init)
+    bio._instance = None
+    with pytest.raises(RuntimeError) as excinfo:
+        bio._get_api()
+    assert "Make sure you have EC-lab registered with OLE-COM" in str(excinfo.value)

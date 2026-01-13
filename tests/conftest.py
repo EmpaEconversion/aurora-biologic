@@ -54,3 +54,33 @@ def mock_bio(test_config_dir: Path) -> Generator[bio.BiologicAPI]:
     yield api
 
     bio._instance = None  # Reset singleton
+
+
+@pytest.fixture
+def empty_config(test_config_dir: Path) -> Generator[Path]:
+    """Point to a non-existent config."""
+    os.environ["AURORA_BIOLOGIC_CONFIG_FILENAME"] = "config2.json"
+    yield test_config_dir / "config2.json"
+    os.environ["AURORA_BIOLOGIC_CONFIG_FILENAME"] = "config.json"
+
+
+@pytest.fixture
+def bad_config(test_config_dir: Path) -> Generator[Path]:
+    """Point to a bad config."""
+    os.environ["AURORA_BIOLOGIC_CONFIG_FILENAME"] = "config3.json"
+    config_path = test_config_dir / "config3.json"
+    with config_path.open("w") as f:
+        json.dump({"serial_to_name": {12345: "OFFLINE-1"}}, f)
+    yield config_path
+    os.environ["AURORA_BIOLOGIC_CONFIG_FILENAME"] = "config.json"
+
+
+@pytest.fixture
+def no_eclab_config(test_config_dir: Path) -> Generator[Path]:
+    """Point to a bad config."""
+    os.environ["AURORA_BIOLOGIC_CONFIG_FILENAME"] = "config4.json"
+    config_path = test_config_dir / "config4.json"
+    with config_path.open("w") as f:
+        json.dump({"serial_to_name": {12345: "MPG2-1"}}, f)
+    yield config_path
+    os.environ["AURORA_BIOLOGIC_CONFIG_FILENAME"] = "config.json"
