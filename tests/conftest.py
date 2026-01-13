@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import patch
@@ -9,6 +10,19 @@ from unittest.mock import patch
 import pytest
 
 import aurora_biologic.biologic as bio
+
+# Add tests directory to path so mocks can be imported
+tests_dir = str(Path(__file__).parent)
+
+# For the current Python process
+sys.path.insert(0, tests_dir)
+
+# For any subprocesses
+original_pythonpath = os.environ.get("PYTHONPATH", "")
+if original_pythonpath:
+    os.environ["PYTHONPATH"] = f"{tests_dir}{os.pathsep}{original_pythonpath}"
+else:
+    os.environ["PYTHONPATH"] = tests_dir
 
 
 @pytest.fixture(scope="session", autouse=True)
