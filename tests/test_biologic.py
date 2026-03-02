@@ -114,6 +114,17 @@ def test_get_status(mock_bio) -> None:
     assert len(res) == 0
 
 
+def test_bad_get_status(mock_bio, monkeypatch) -> None:
+    """Test the get_status() function when EC-lab returns all zeros."""
+
+    def _failed_status(*args: tuple) -> tuple:  # noqa: ARG001
+        return (*[0.0] * 32,)
+
+    monkeypatch.setattr(FakeECLab, "MeasureStatus", _failed_status)
+    with pytest.raises(RuntimeError, match="all zero"):
+        bio.get_status("MPG2-1-1")
+
+
 def test_load_settings(mock_bio, tmpdir: Path) -> None:
     """Test load_settings() function."""
     mps_path = tmpdir / "settings.mps"
