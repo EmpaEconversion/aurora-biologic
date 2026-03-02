@@ -114,7 +114,9 @@ def test_get_status(mock_bio) -> None:
     assert len(res) == 0
 
 
-def test_bad_get_status(mock_bio, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_bad_get_status(
+    mock_bio, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     """Test the get_status function when EC-lab returns all zeros."""
     original_status = FakeECLab.MeasureStatus
 
@@ -125,13 +127,23 @@ def test_bad_get_status(mock_bio, monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(FakeECLab, "MeasureStatus", _failed_status)
 
-    bio.get_status("MPG2-1-9")  # One channel passes
-    with pytest.raises(RuntimeError, match="all zero"):  # MPG2-1-10 fails
-        bio.get_status("MPG2-1-10")
-    with pytest.raises(RuntimeError, match="all zero"):  # All fail if one fails
-        bio.get_status(["MPG2-1-10", "MPG2-1-9"])
-    with pytest.raises(RuntimeError, match="all zero"):  # All fail if one fails
-        bio.get_status()
+    res = bio.get_status("MPG2-1-9")  # One channel passes
+    assert len(res) == 1
+
+    caplog.clear()
+    res = bio.get_status("MPG2-1-10")  # MPG2-1-10 fails
+    assert len(res) == 0
+    assert "Couldn't get status" in caplog.text
+
+    caplog.clear()
+    res = bio.get_status(["MPG2-1-10", "MPG2-1-9"])  # Continue if one fails
+    assert len(res) == 1
+    assert "Couldn't get status" in caplog.text
+
+    caplog.clear()
+    res = bio.get_status()  # Continue if one fails
+    assert len(res) == 14
+    assert "Couldn't get status" in caplog.text
 
 
 def test_load_settings(mock_bio, tmpdir: Path) -> None:
