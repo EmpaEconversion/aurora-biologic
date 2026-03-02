@@ -284,6 +284,18 @@ class BiologicAPI:
             raise RuntimeError
         return start, end, folder, files
 
+    @retry_with_backoff(delays_s=(0.01,))
+    def _olecom_get_status(self, dev_idx: int, channel_idx: int) -> tuple:
+        res = self.eclab.MeasureStatus(
+            dev_idx,
+            channel_idx,
+        )
+        # Status does not fail like other OLE-COM - just returns all 0
+        if all(r == 0 for r in res):
+            msg = "Status is all zero."
+            raise RuntimeError(msg)
+        return res
+
     ### Public API methods ###
 
     def get_pipelines(self, *, show_offline: bool = False) -> dict[str, dict]:
@@ -326,12 +338,15 @@ class BiologicAPI:
         # Get the status of each pipeline and add it to the result dictionary
         status = {}
         for pipeline_id, pipeline_dict in pipeline_dicts.items():
-            status[pipeline_id] = _human_readable_status(
-                self.eclab.MeasureStatus(  # does not have fail state, no retrying
-                    pipeline_dict["device_index"],
-                    pipeline_dict["channel_index"],
-                ),
-            )
+            try:
+                status[pipeline_id] = _human_readable_status(
+                    self._olecom_get_status(
+                        pipeline_dict["device_index"],
+                        pipeline_dict["channel_index"],
+                    ),
+                )
+            except RuntimeError:  # noqa: PERF203
+                logger.warning("Couldn't get status for pipeline %s from EC-lab", pipeline_id)
 
         return status
 

@@ -59,7 +59,7 @@ class FakeECLab:
 
     def MeasureStatus(self, dev_idx: int, channel_idx: int) -> tuple:
         if dev_idx == 2:
-            return (*[0.0] * 32,)
+            return (1.0, *[0.0] * 31)
         return (
             1.0,
             1.0,
