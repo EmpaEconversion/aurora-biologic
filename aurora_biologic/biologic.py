@@ -16,7 +16,6 @@ from time import sleep
 from types import TracebackType
 from typing import Any
 
-import psutil
 from comtypes.client import CreateObject
 from platformdirs import user_config_dir
 
@@ -137,7 +136,13 @@ class BiologicAPI:
 
     def _open_eclab(self) -> None:
         """Open EC-lab if it is not already running."""
-        if not any("EClab" in proc.info["name"] for proc in psutil.process_iter(["name"])):
+        result = subprocess.run(
+            [r"C:\Windows\System32\tasklist.exe"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if "EClab" not in result.stdout:
             if eclab_path := self.CONFIG.get("eclab_path"):
                 if not os.getenv("AURORA_BIOLOGIC_MOCK_OLECOM"):
                     subprocess.Popen([eclab_path])
