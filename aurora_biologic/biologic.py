@@ -156,6 +156,12 @@ class BiologicAPI:
                     raise ValueError(msg)
                 if not os.getenv("AURORA_BIOLOGIC_MOCK_OLECOM"):
                     subprocess.Popen([eclab_path])
+                logger.critical(
+                    "EC-lab is not running. Starting %s. "
+                    "Devices may take a while to connect, "
+                    "try again in a minute if this command says all devices are offline.",
+                    eclab_path,
+                )
                 _sleep(2)  # To allow the program to initialize
             else:
                 msg = (
