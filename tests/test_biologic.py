@@ -284,3 +284,11 @@ def test_bad_eclab(monkeypatch) -> None:
     with pytest.raises(RuntimeError) as excinfo:
         bio._get_api()
     assert "Make sure you have EC-lab registered with OLE-COM" in str(excinfo.value)
+
+
+def test_bad_exe(no_eclab_exe: Path) -> None:
+    """Test opening EC-lab with bad executable path."""
+    assert no_eclab_exe.exists()
+    bio._instance = None
+    with pytest.raises(ValueError, match="does not point to an exe"):
+        bio._get_api()
