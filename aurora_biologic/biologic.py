@@ -137,7 +137,7 @@ class BiologicAPI:
     def _open_eclab(self) -> None:
         """Open EC-lab if it is not already running."""
         result = subprocess.run(
-            [r"C:\Windows\System32\tasklist.exe"],
+            [r"C:\Windows\System32\tasklist.exe", "/FI", "IMAGENAME eq EClab.exe", "/NH"],
             check=False,
             capture_output=True,
             text=True,
