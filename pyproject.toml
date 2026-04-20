@@ -18,14 +18,13 @@ requires-python = ">=3.10"
 dependencies = [
     "comtypes>=1.4.11",
     "platformdirs>=4.3.8",
-    "pre-commit>=4.3.0",
-    "psutil>=7.0.0",
     "typer>=0.16.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "bumpver>=2025.1131",
+    "pre-commit>=4.3.0",
     "pytest>=8.4.1",
     "ruff>=0.12.3",
 ]
