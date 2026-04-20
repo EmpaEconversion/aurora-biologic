@@ -136,14 +136,24 @@ class BiologicAPI:
 
     def _open_eclab(self) -> None:
         """Open EC-lab if it is not already running."""
+        eclab_name = Path(
+            self.CONFIG.get(
+                "eclab_path",
+                "C:/Program Files (x86)/EC-Lab/EClab.exe",
+            )
+        ).name
         result = subprocess.run(
-            [r"C:\Windows\System32\tasklist.exe", "/FI", "IMAGENAME eq EClab.exe", "/NH"],
+            [r"C:\Windows\System32\tasklist.exe", "/FI", f"IMAGENAME eq {eclab_name}", "/NH"],
             check=False,
             capture_output=True,
             text=True,
         )
-        if "EClab" not in result.stdout:
-            if eclab_path := self.CONFIG.get("eclab_path"):
+        if eclab_name.lower() not in result.stdout.lower():
+            eclab_path = self.CONFIG.get("eclab_path")
+            if eclab_path:
+                if Path(eclab_path).suffix != ".exe":
+                    msg = f"eclab_path does not point to an executable: {eclab_path}"
+                    raise ValueError(msg)
                 if not os.getenv("AURORA_BIOLOGIC_MOCK_OLECOM"):
                     subprocess.Popen([eclab_path])
                 _sleep(2)  # To allow the program to initialize
