@@ -84,3 +84,20 @@ def no_eclab_config(test_config_dir: Path) -> Generator[Path]:
         json.dump({"serial_to_name": {12345: "MPG2-1"}}, f)
     yield config_path
     os.environ["AURORA_BIOLOGIC_CONFIG_FILENAME"] = "config.json"
+
+
+@pytest.fixture
+def no_eclab_exe(test_config_dir: Path) -> Generator[Path]:
+    """Point to a bad config."""
+    os.environ["AURORA_BIOLOGIC_CONFIG_FILENAME"] = "config4.json"
+    config_path = test_config_dir / "config4.json"
+    with config_path.open("w") as f:
+        json.dump(
+            {
+                "serial_to_name": {12345: "MPG2-1"},
+                "eclab_path": "this/path/doesnt/exist/EClab.msi",
+            },
+            f,
+        )
+    yield config_path
+    os.environ["AURORA_BIOLOGIC_CONFIG_FILENAME"] = "config.json"
