@@ -283,7 +283,7 @@ def test_bad_eclab(monkeypatch) -> None:
     bio._instance = None
     with pytest.raises(RuntimeError) as excinfo:
         bio._get_api()
-    assert "Make sure you have EC-lab registered with OLE-COM" in str(excinfo.value)
+    assert "Make sure EC-Lab is registered with OLE-COM" in str(excinfo.value)
 
 
 def test_bad_exe(no_eclab_exe: Path) -> None:
