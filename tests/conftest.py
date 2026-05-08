@@ -2,6 +2,7 @@
 
 import json
 import os
+import socket
 import subprocess
 import sys
 from collections.abc import Generator
@@ -10,6 +11,7 @@ from pathlib import Path
 import pytest
 
 import aurora_biologic.biologic as bio
+from aurora_biologic.cli.daemon import HOST, PORT
 
 # Add tests directory to path so mocks can be imported
 tests_dir = str(Path(__file__).parent)
@@ -24,16 +26,32 @@ if original_pythonpath:
 else:
     os.environ["PYTHONPATH"] = tests_dir
 
-# Ensure EC-lab not already running
-result = subprocess.run(
-    [r"C:\Windows\System32\tasklist.exe", "/FI", "IMAGENAME eq ECLab.exe", "/NH"],
-    check=False,
-    capture_output=True,
-    text=True,
-)
-if "eclab" in result.stdout.lower():
-    msg = "ECLab.exe must not be running during tests. Please close EC-Lab before running tests."
-    raise AssertionError(msg)
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Ensure EC-lab and biologic daemon are not running before tests start."""
+    # Ensure biologic daemon not already running
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        if s.connect_ex((HOST, PORT)) == 0:
+            pytest.exit(
+                f"Biologic daemon already running (or port {PORT} otherwise occupied). "
+                "Please stop it before running tests.",
+                returncode=1,
+            )
+
+    # Ensure EC-lab not already running
+    result = subprocess.run(
+        [r"C:\Windows\System32\tasklist.exe", "/FI", "IMAGENAME eq ECLab.exe", "/NH"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        pytest.exit(f"Failed to check for ECLab.exe: {result.stderr}", returncode=1)
+    if "eclab" in result.stdout.lower():
+        pytest.exit(
+            "ECLab.exe must not be running during tests. Please close EC-Lab before running tests.",
+            returncode=1,
+        )
 
 
 @pytest.fixture(scope="session")
