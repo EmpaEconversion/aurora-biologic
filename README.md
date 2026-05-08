@@ -127,6 +127,19 @@ biologic status --ssh
 
 Instead of trying to run OLE/COM commands directly in the non-interactive session, it will send commands to the daemon, which will execute and reply.
 
+## Testing
+
+```bash
+pip install pytest
+pytest  # runs without ec-lab
+```
+To test against a real EC-lab instance, ensure EC-lab is open and has at least 2 channels available
+(can be virtual potentiostat), then run:
+```bash
+pytest --real-eclab  # runs on ec-lab
+```
+The tests don't start/stop channels, but still do not run this if you have real experiments running.
+
 ## Contributors
 
 - [Graham Kimbell](https://github.com/g-kimbell)

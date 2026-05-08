@@ -27,8 +27,39 @@ else:
     os.environ["PYTHONPATH"] = tests_dir
 
 
-def pytest_configure(config: pytest.Config) -> None:
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Add --real-eclab flag to run integration tests against a live EC-Lab.exe."""
+    parser.addoption(
+        "--real-eclab",
+        action="store_true",
+        default=False,
+        help=(
+            "Run tests against a real EC-Lab.exe. "
+            "Requires EC-Lab to be running, and a device available (virtual or real)."
+        ),
+    )
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Skip real_eclab tests by default, skip mock tests when --real-eclab is passed."""
+    real_eclab = config.getoption("--real-eclab")
+    skip_mock = pytest.mark.skip(reason="use without --real-eclab to run mock tests")
+    skip_real = pytest.mark.skip(reason="pass --real-eclab to run")
+    for item in items:
+        is_real = bool(item.get_closest_marker("real_eclab"))
+        if real_eclab and not is_real:
+            item.add_marker(skip_mock)
+        elif not real_eclab and is_real:
+            item.add_marker(skip_real)
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
     """Ensure EC-lab and biologic daemon are not running before tests start."""
+    if session.config.option.collectonly:
+        return
+
+    real_eclab = session.config.getoption("--real-eclab")
+
     # Ensure biologic daemon not already running
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         if s.connect_ex((HOST, PORT)) == 0:
@@ -38,7 +69,7 @@ def pytest_configure(config: pytest.Config) -> None:
                 returncode=1,
             )
 
-    # Ensure EC-lab not already running
+    # Check EC-Lab running state matches the test mode
     result = subprocess.run(
         [r"C:\Windows\System32\tasklist.exe", "/FI", "IMAGENAME eq ECLab.exe", "/NH"],
         check=False,
@@ -47,9 +78,16 @@ def pytest_configure(config: pytest.Config) -> None:
     )
     if result.returncode != 0:
         pytest.exit(f"Failed to check for ECLab.exe: {result.stderr}", returncode=1)
-    if "eclab" in result.stdout.lower():
+    eclab_running = "eclab" in result.stdout.lower()
+    if eclab_running and not real_eclab:
         pytest.exit(
-            "ECLab.exe must not be running during tests. Please close EC-Lab before running tests.",
+            "ECLab.exe must not be running during mock tests. "
+            "Close EC-Lab, or pass --real-eclab to run integration tests instead.",
+            returncode=1,
+        )
+    if not eclab_running and real_eclab:
+        pytest.exit(
+            "ECLab.exe is not running. Start EC-Lab before using --real-eclab.",
             returncode=1,
         )
 
@@ -131,3 +169,12 @@ def no_eclab_exe(test_config_dir: Path) -> Generator[Path]:
         )
     yield config_path
     os.environ["AURORA_BIOLOGIC_CONFIG_FILENAME"] = "config.json"
+
+
+@pytest.fixture(scope="module")
+def real_bio() -> Generator[bio.BiologicAPI]:
+    """BiologicAPI connected to the real EC-Lab.exe, used with --real-eclab."""
+    bio._instance = None
+    api = bio._get_api()
+    yield api
+    bio._instance = None
