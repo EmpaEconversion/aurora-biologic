@@ -173,7 +173,8 @@ def test_load_settings_ssh(mock_bio, mock_daemon, tmp_path: Path) -> None:
     assert not mps_path.exists()
 
     result = runner.invoke(app, ["load-settings", "MPG2-1-1", str(mps_path), "--ssh"])
-    assert "FileNotFoundError" in result.stdout
+    assert result.exit_code != 0
+    assert "FileNotFoundError" in result.output
 
     with mps_path.open("w") as f:
         f.write("some settings would go here")
@@ -199,7 +200,8 @@ def test_run_channel_ssh(mock_bio, mock_daemon, tmp_path: Path) -> None:
     result = runner.invoke(app, ["run-channel", "MPG2-1-123", "--ssh"])
     assert result.exit_code == 2
     result = runner.invoke(app, ["run-channel", "MPG2-1-123", str(output_path), "--ssh"])
-    assert "ValueError" in result.stdout
+    assert result.exit_code != 0
+    assert "ValueError" in result.output
     result = runner.invoke(app, ["run-channel", "MPG2-1-1", str(output_path), "--ssh"])
     assert result.stdout.strip() == ""
 

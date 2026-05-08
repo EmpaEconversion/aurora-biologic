@@ -10,6 +10,7 @@ This allows you to run commands from a non-interactive terminal, like through SS
 """
 
 import contextlib
+import json
 import logging
 import queue
 import socket
@@ -37,19 +38,32 @@ def recv_all(sock: socket.socket) -> bytes:
     return b"".join(chunks)
 
 
-def send_command(command: list[str]) -> str:
-    """Send a command to the Biologic daemon and print the response."""
+def send_command(command: list[str]) -> dict:
+    """Send a command to the Biologic daemon and return the structured response.
+
+    Response is a dict with keys `stderr`, `stdout`, `returncode`.
+    """
     try:
         with socket.create_connection((HOST, PORT), timeout=10) as sock:
             sock.sendall(" ".join(command).encode())
-            response = recv_all(sock)
-            return response.decode().strip()
+            return json.loads(recv_all(sock).decode())
     except ConnectionRefusedError:
         logger.exception(
             "Biologic daemon not running - run 'biologic daemon' "
             "in a GUI session on the PC with EC-lab and OLE-COM."
         )
         sys.exit(1)
+
+
+def send_command_and_output(command: list[str]) -> None:
+    """Send a command to the daemon and route stdout/stderr to the correct streams."""
+    result = send_command(command)
+    if result["stdout"]:
+        sys.stdout.write(result["stdout"])
+    if result["stderr"]:
+        sys.stderr.write(result["stderr"])
+    if result["returncode"] != 0:
+        sys.exit(result["returncode"])
 
 
 def receive_command(conn: socket.socket, addr: tuple[str, int]) -> None:
@@ -59,7 +73,9 @@ def receive_command(conn: socket.socket, addr: tuple[str, int]) -> None:
         command = conn.recv(4096).decode()
         if not command.startswith("biologic"):
             logger.warning("Invalid command from %s: %s", addr, command)
-            conn.sendall(b"Invalid command\n")
+            conn.sendall(
+                json.dumps({"returncode": 1, "stdout": "", "stderr": "Invalid command\n"}).encode()
+            )
             conn.close()
             return
 
@@ -69,7 +85,9 @@ def receive_command(conn: socket.socket, addr: tuple[str, int]) -> None:
     except Exception as e:
         logger.exception("Failed to read command from %s", addr)
         with contextlib.suppress(Exception):
-            conn.sendall(f"Error: {e}".encode())
+            conn.sendall(
+                json.dumps({"returncode": 1, "stdout": "", "stderr": f"Error: {e}"}).encode()
+            )
 
         conn.close()
 
@@ -87,14 +105,22 @@ def command_worker() -> None:
                 capture_output=True,
                 text=True,
             )
-            if result.returncode != 0:
-                conn.sendall(result.stderr.encode())
-            else:
-                conn.sendall(result.stdout.encode())
+            conn.sendall(
+                json.dumps(
+                    {
+                        "returncode": result.returncode,
+                        "stdout": result.stdout,
+                        "stderr": result.stderr,
+                    }
+                ).encode()
+            )
         except Exception as e:
             logger.exception("Error executing command from %s", addr)
             with contextlib.suppress(Exception):
-                conn.sendall(f"Execution error: {e}".encode())
+                payload = json.dumps(
+                    {"returncode": 1, "stdout": "", "stderr": f"Execution error: {e}"}
+                )
+                conn.sendall(payload.encode())
         finally:
             conn.close()
             command_queue.task_done()

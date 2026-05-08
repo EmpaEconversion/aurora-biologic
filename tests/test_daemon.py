@@ -1,6 +1,7 @@
 """Unit tests for daemon."""
 
 import contextlib
+import json
 import socket
 from unittest.mock import MagicMock, patch
 
@@ -13,8 +14,9 @@ def test_receive_command_invalid() -> None:
     client.sendall(b"notbiologic foo")
     client.shutdown(socket.SHUT_WR)
     receive_command(server, ("127.0.0.1", 9999))  # runs synchronously
-    response = client.recv(1024)
-    assert b"Invalid command" in response
+    response = json.loads(client.recv(1024).decode())
+    assert response["returncode"] == 1
+    assert "Invalid command" in response["stderr"]
     server.close()
     client.close()
 
@@ -25,7 +27,9 @@ def test_receive_command_error() -> None:
     conn.recv.side_effect = ValueError("couldn't decode command")
     receive_command(conn, ("127.0.0.1", 9999))
     conn.sendall.assert_called_once()
-    assert b"Error:" in conn.sendall.call_args[0][0]
+    response = json.loads(conn.sendall.call_args[0][0].decode())
+    assert response["returncode"] == 1
+    assert "Error:" in response["stderr"]
     conn.close.assert_called_once()
 
 
@@ -54,7 +58,9 @@ def test_command_worker_one_shot() -> None:
             contextlib.suppress(SystemExit),
         ):
             command_worker()
-    assert client.recv(1024).strip() == b"ok"
+    response = json.loads(client.recv(1024).decode())
+    assert response["returncode"] == 0
+    assert response["stdout"] == "ok\n"
     server.close()
     client.close()
 
@@ -84,6 +90,8 @@ def test_command_worker_one_shot_error() -> None:
             contextlib.suppress(SystemExit),
         ):
             command_worker()
-    assert b"Execution error" in client.recv(1024)
+    response = json.loads(client.recv(1024).decode())
+    assert response["returncode"] == 1
+    assert "Execution error" in response["stderr"]
     server.close()
     client.close()
