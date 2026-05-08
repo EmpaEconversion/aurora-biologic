@@ -9,7 +9,7 @@ from typing import Annotated
 import typer
 
 import aurora_biologic.biologic as bio
-from aurora_biologic.cli.daemon import send_command, start_daemon
+from aurora_biologic.cli.daemon import send_command_and_output, start_daemon
 
 logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
 
@@ -70,7 +70,7 @@ def pipelines(
             command += [f"--indent={indent}"]
         if show_offline:
             command += ["--show-offline"]
-        typer.echo(send_command(command))
+        send_command_and_output(command)
         return
     typer.echo(json.dumps(bio.get_pipelines(show_offline=show_offline), indent=indent))
 
@@ -94,7 +94,7 @@ def status(
             command += ["--show-offline"]
         if indent:
             command += [f"--indent={indent}"]
-        typer.echo(send_command(command))
+        send_command_and_output(command)
         return
     status = bio.get_status(pipeline_ids=pipeline_ids, show_offline=show_offline)
     typer.echo(json.dumps(status, indent=indent))
@@ -109,7 +109,7 @@ def load_settings(
     """Load settings on to a pipeline."""
     if ssh:
         command = ["biologic", "load-settings", pipeline, str(settings_file)]
-        typer.echo(send_command(command))
+        send_command_and_output(command)
         return
     bio.load_settings(pipeline, settings_file)
 
@@ -123,7 +123,7 @@ def run_channel(
     """Run the settings loaded on a pipeline."""
     if ssh:
         command = ["biologic", "run-channel", pipeline, str(output_path)]
-        typer.echo(send_command(command))
+        send_command_and_output(command)
         return
     bio.run_channel(pipeline, output_path)
 
@@ -138,7 +138,7 @@ def start(
     """Load and run settings on a pipeline."""
     if ssh:
         command = ["biologic", "start", pipeline, str(settings_file), str(output_path)]
-        typer.echo(send_command(command))
+        send_command_and_output(command)
         return
     bio.start(pipeline, settings_file, output_path)
 
@@ -151,7 +151,7 @@ def stop(
     """Stop the cycling process on a pipeline."""
     if ssh:
         command = ["biologic", "stop", pipeline]
-        typer.echo(send_command(command))
+        send_command_and_output(command)
         return
     bio.stop(pipeline)
 
@@ -177,7 +177,7 @@ def get_job_id(
             command += ["--show-offline"]
         if indent:
             command += [f"--indent={indent}"]
-        typer.echo(send_command(command))
+        send_command_and_output(command)
         return
     typer.echo(json.dumps(bio.get_job_id(pipeline_ids, show_offline=show_offline), indent=indent))
 
