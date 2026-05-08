@@ -184,7 +184,10 @@ class BiologicAPI:
             msg = (
                 "Failed to connect to EC-Lab. "
                 "Make sure you have EC-lab registered with OLE-COM. "
-                "cd to the directory and use ECLab /regserver"
+                "In cmd or Powershell with admin rights, go to the EC-lab directory: "
+                '`cd "C:/Program files (x86)/EC-lab"`, '
+                "then register with `eclab /regserver` in cmd "
+                r"or `./eclab /regserver` in Powershell."
             )
             raise RuntimeError(msg) from e
         _sleep(0.001)
