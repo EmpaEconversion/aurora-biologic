@@ -36,13 +36,13 @@ Open a terminal as administrator, go to your folder containing `EClab.exe` and r
 `cmd`
 ```cmd
 cd "C:/Program files (x86)/EC-lab"
-eclab \regserver
+eclab /regserver
 ```
 
 `powershell`
 ```powershell
 cd "C:/Program files (x86)/EC-lab"
-.\eclab \\regserver
+./eclab /regserver
 ```
 
 You can also deregister in the same way with `/unregserver`.

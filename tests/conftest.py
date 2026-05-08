@@ -2,6 +2,7 @@
 
 import json
 import os
+import subprocess
 import sys
 from collections.abc import Generator
 from pathlib import Path
@@ -22,6 +23,17 @@ if original_pythonpath:
     os.environ["PYTHONPATH"] = f"{tests_dir}{os.pathsep}{original_pythonpath}"
 else:
     os.environ["PYTHONPATH"] = tests_dir
+
+# Ensure EC-lab not already running
+result = subprocess.run(
+    [r"C:\Windows\System32\tasklist.exe", "/FI", "IMAGENAME eq ECLab.exe", "/NH"],
+    check=False,
+    capture_output=True,
+    text=True,
+)
+if "eclab" in result.stdout.lower():
+    msg = "ECLab.exe must not be running during tests. Please close EC-Lab before running tests."
+    raise AssertionError(msg)
 
 
 @pytest.fixture(scope="session")

@@ -182,9 +182,12 @@ class BiologicAPI:
                 eclab = CreateObject("EClabCOM.EClabExe")
         except OSError as e:
             msg = (
-                "Failed to connect to EC-Lab. "
-                "Make sure you have EC-lab registered with OLE-COM. "
-                "cd to the directory and use ECLab /regserver"
+                "Failed to connect to EC-Lab.\n"
+                "Make sure EC-Lab is registered with OLE-COM.\n\n"
+                "In cmd or PowerShell with admin rights:\n"
+                '  1. cd "C:/Program Files (x86)/EC-Lab"\n'
+                "  2. eclab /regserver             (cmd)\n"
+                "     ./eclab /regserver    (PowerShell)\n"
             )
             raise RuntimeError(msg) from e
         _sleep(0.001)
