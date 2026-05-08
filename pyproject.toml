@@ -57,6 +57,11 @@ fix = true
     "SLF001", # allow private member access
 ]
 
+[tool.pytest.ini_options]
+markers = [
+    "real_eclab: marks tests that require a running EC-Lab.exe (deselected by default)",
+]
+
 [tool.mypy]
 disable_error_code = ["import-untyped"]
 
