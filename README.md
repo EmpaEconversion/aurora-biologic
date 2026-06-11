@@ -13,7 +13,7 @@
 
 A standalone Python API and command line interface (CLI) to control Biologic battery cyclers.
 
-Designed and tested on MPG2 cyclers using EC-lab 11.52 and 11.61.
+This requires EC-lab >=11.11, and has been designed and tested on EC-lab 11.52 and 11.61 using MPG2 cyclers.
 
 ## Features
 - CLI and Python API
@@ -25,13 +25,11 @@ Designed and tested on MPG2 cyclers using EC-lab 11.52 and 11.61.
 For parsing binary data from Biologic, we recommend [`yadg`](https://github.com/dgbowl/yadg).
 
 ## Installation
-Install on a Windows PC with EC-lab >11.52 installed.
-> [!IMPORTANT]
-> EC-lab must have OLE/COM activated
+Install on a Windows PC with EC-lab >=11.11 installed. EC-lab must have OLE/COM activated.
 
-OLE/COM is a Windows interface for programs to expose their functionality to third-parties, which is supported by EC-lab.
+OLE/COM is a Windows interface for programs to expose their functionality to third-parties.
 
-Open a terminal as administrator, go to your folder containing `EClab.exe` and register the server:
+To enable OLE/COM on EC-lab, open a terminal as administrator, go to your folder containing `EClab.exe` and register the server:
 
 `cmd`
 ```cmd
@@ -44,6 +42,12 @@ eclab /regserver
 cd "C:/Program files (x86)/EC-lab"
 ./eclab /regserver
 ```
+> [!IMPORTANT]
+> The slash direction matters! ✅ `/regserver`, ❌ `\regserver`
+>
+> If EC-lab opens, you probably did the wrong command.
+>
+> If you get `Error creating system registry entry`, make sure you are running cmd/PowerShell as administrator
 
 You can also deregister in the same way with `/unregserver`.
 
@@ -139,6 +143,10 @@ To test against a real EC-lab instance, ensure EC-lab is open and has at least 2
 pytest --real-eclab  # runs on ec-lab
 ```
 The tests don't start/stop channels, but still do not run this if you have real experiments running.
+
+## Help! It doesn't work
+
+Bug reports and compatibility issues are very useful to us. Raise an issue on GitHub and we will try our best to fix the problem.
 
 ## Contributors
 
