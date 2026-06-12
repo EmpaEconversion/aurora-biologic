@@ -95,23 +95,7 @@ biologic status MPG2-1-7
 >
 >See details of a command with `biologic [command] --help` e.g. `biologic status --help`.
 
-## API usage
-
-Commands can also be run using Python, e.g.:
-
-```python
-import aurora_biologic as bio
-
-print(bio.get_status())
-
-bio.start(
-    "my_pipeline_id",
-    "path/to/my_experiment.mps",
-    "path/to/an/output.mpr",
-)
-```
-
-## Using commands over SSH
+## Using CLI commands over SSH
 >[!WARNING]
 >OLE/COM requires an interactive session to function.
 >
@@ -130,6 +114,51 @@ biologic status --ssh
 ```
 
 Instead of trying to run OLE/COM commands directly in the non-interactive session, it will send commands to the daemon, which will execute and reply.
+
+## Python usage
+
+Commands can also be run using Python, e.g.:
+
+```python
+import aurora_biologic as bio
+
+print(bio.get_status())
+
+bio.start(
+    "my_pipeline_id",
+    "path/to/my_experiment.mps",
+    "path/to/an/output.mpr",
+)
+```
+
+## REST API usage
+
+Install additional dependencies with
+```shell
+pip install aurora-biologic[api]
+```
+Then start the server by running
+```shell
+uvicorn aurora_biologic.api.main:app --host localhost --port 8000
+```
+You can then see the available endpoints at `http://localhost:8000/docs`.
+
+To make the server reachable from other machines on the network, you can use `--host 0.0.0.0`. We strongly recommend only doing this in a secure network and using an API key, otherwise anyone with access can stop every measurement and set the voltage to max on every channel connected.
+
+Set an API key with the `AURORA_BIOLOGIC_API_KEY` environment variable, and ensure that you see the message "API key authentication enabled" when starting the server.
+
+In PowerShell (only lasts for that session):
+```shell
+$env:AURORA_BIOLOGIC_API_KEY = "myverysecretkey"
+```
+Or set the key permanently in Windows environment variables.
+
+Then users should pass this key in their requests, e.g.
+```shell
+curl.exe -H "X-API-Key: myverysecretkey" http://<server-ip>:8000/status
+```
+Or use the 'authorize' button on `http://localhost:8000/docs`.
+
 
 ## Testing
 
