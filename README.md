@@ -11,7 +11,7 @@
 [![Coverage](https://img.shields.io/codecov/c/github/empaeconversion/aurora-biologic)](https://app.codecov.io/gh/EmpaEconversion/aurora-biologic)
 
 
-A standalone Python API and command line interface (CLI) to control Biologic battery cyclers.
+A standalone Python API and command line interface (CLI) to control Biologic cyclers.
 
 This requires EC-lab >=11.11, and has been designed and tested on EC-lab 11.52 and 11.61 using MPG2 cyclers.
 
@@ -56,12 +56,12 @@ Next, install this package with
 pip install aurora-biologic
 ```
 
-To see commands, use
+You can check what devices and channels were found with
 ```bash
-biologic --help
+biologic pipelines
 ```
 
-The first time you run the command line, a config file is generated at:
+When you run a command for the first time, a config file is generated at:
 
 `C:\Users\<user>\AppData\Local\aurora-biologic\config.json`
 
@@ -75,7 +75,9 @@ which will look like:
     "eclab_path": "C:/Program Files (x86)/EC-Lab/EClab.exe"
 }
 ```
-Rename your devices according to their serial number, and make sure the EC-lab executable path is correct and the same as the executable registered in the first step.
+Make sure `eclab_path` is correct and points to the same file you registered in the first step.
+
+We recommend renaming your devices to something meaningful using `serial_to_name`, e.g. matching their human-friendly names in EC-lab. You can see the device serial numbers in EC-lab in the 'add device' menu.
 
 ## CLI usage
 
@@ -83,11 +85,19 @@ You can check what devices and channels were found with
 ```bash
 biologic pipelines
 ```
-The pipeline ID is made up of the `{device name}-{channel index}`, such as `MPG2-1-7`
+The pipeline ID is made up of the `{device name}-{channel index}`, such as `MPG2-1-7` (or `12345-7` if you are still using the serial number).
 
 These IDs are used for other functions, for example to see the status of that channel use
 ```bash
 biologic status MPG2-1-7
+```
+
+```bash
+biologic start MPG2-1-7 "my/settings.mps" "my/output.mpr"
+```
+
+```bash
+biologic stop MPG2-1-7
 ```
 
 >[!TIP]
@@ -131,22 +141,30 @@ biologic status --ssh
 
 Instead of trying to run OLE/COM commands directly in the non-interactive session, it will send commands to the daemon, which will execute and reply.
 
-## Testing
+## Help! It doesn't work
 
+Bug reports and compatibility issues are very useful to us. Raise an issue on GitHub and we will try our best to fix the problem.
+
+## For developers
+
+Clone the repo and install in editable mode with developer dependencies:
 ```bash
-pip install pytest
+git clone https://github.com/EmpaEconversion/aurora-biologic
+cd aurora-biologic
+pip install -e .[dev]
+```
+
+Run tests without EC-lab running with:
+```
 pytest  # runs without ec-lab
 ```
+
 To test against a real EC-lab instance, ensure EC-lab is open and has at least 2 channels available
 (can be virtual potentiostat), then run:
 ```bash
 pytest --real-eclab  # runs on ec-lab
 ```
 The tests don't start/stop channels, but still do not run this if you have real experiments running.
-
-## Help! It doesn't work
-
-Bug reports and compatibility issues are very useful to us. Raise an issue on GitHub and we will try our best to fix the problem.
 
 ## Contributors
 
