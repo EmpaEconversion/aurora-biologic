@@ -1,4 +1,4 @@
-"""CLI for the Biologic battery cycling API."""
+"""CLI for the Biologic cycler API."""
 
 import json
 import logging
