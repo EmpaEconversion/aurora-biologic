@@ -7,6 +7,7 @@ from aurora_biologic.biologic import (
     get_pipelines,
     get_status,
     load_settings,
+    run_channel,
     start,
     stop,
 )
@@ -20,6 +21,7 @@ __all__ = [
     "get_pipelines",
     "get_status",
     "load_settings",
+    "run_channel",
     "start",
     "stop",
 ]
